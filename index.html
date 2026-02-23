@@ -349,17 +349,8 @@ function BCBudgetV2() {
         else if (item.adminPct >= 20) newExp[item.id] = item.baseline * 0.9;
       });
       setExpenses(newExp);
-    } else if (preset === "fair_tax") {
-      setBrackets(prev => prev.map(b => {
-        if (b.id === "b1") return { ...b, rate: 5.06 };
-        if (b.id === "b5") return { ...b, rate: 15.70 };
-        if (b.id === "b6") return { ...b, rate: 18.80 };
-        if (b.id === "b7") return { ...b, rate: 23.50 };
-        return b;
-      }));
-      setCorpRate(14.0);
     } else if (preset === "my_budget") {
-      // Cut admin, lower all PIT brackets, corp tax to 15%, PST to 5%
+      // Cut admin with AI, lower all PIT brackets, corp tax to 15%, PST to 5%
       const newExp = { ...expenses };
       EXPENSE_ITEMS.forEach(item => {
         if (item.adminPct >= 85) newExp[item.id] = item.baseline * 0.15;
@@ -404,7 +395,7 @@ function BCBudgetV2() {
             </h1>
           </div>
           <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-            {[["reset", "\u21BA Reset"], ["my_budget", "\u{1F4A1} My Budget"], ["admin_1975", "\u{1F4C9} 1975 Admin"], ["admin_ai", "\u{1F916} AI Admin"], ["fair_tax", "\u2696\uFE0F Fair Tax"]].map(([k, l]) => (
+            {[["reset", "\u21BA Reset"], ["my_budget", "\u{1F4A1} My Budget"], ["admin_1975", "\u{1F4C9} 1975 Admin"], ["admin_ai", "\u{1F916} AI Admin"]].map(([k, l]) => (
               <button key={k} onClick={() => applyPreset(k)} style={{ padding: "5px 10px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "#aaa", fontSize: 11, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>{l}</button>
             ))}
           </div>
@@ -510,7 +501,7 @@ function BCBudgetV2() {
             <div style={{ fontSize: 12, color: "#888", marginBottom: 16, lineHeight: 1.5 }}>
               Edit each bracket's tax rate to model alternative approaches. The PIT revenue estimate updates in real-time.
               The government raised only the lowest bracket from 5.06% {"\u2192"} 5.60% while leaving all others untouched.
-              Try the "{"\u2696\uFE0F"} Fair Tax" preset to see what happens when higher earners contribute more instead.
+              Try the "{"\u{1F4A1}"} My Budget" preset to see an alternative: lower all personal brackets, raise corporate tax, drop PST to 5%, and slash admin overhead with AI.
             </div>
 
             {/* Corporate Rate */}
