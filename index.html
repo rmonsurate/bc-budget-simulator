@@ -21,23 +21,55 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body, #root { width: 100%; height: 100%; }
     body { background: #080a0f; }
+
+    /* Slider thumb — larger with hover glow */
     input[type="range"]::-webkit-slider-thumb {
-      -webkit-appearance: none; width: 14px; height: 14px;
+      -webkit-appearance: none; width: 18px; height: 18px;
       background: #fff; border-radius: 50%; cursor: pointer;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+      box-shadow: 0 1px 6px rgba(0,0,0,0.5), 0 0 0 3px rgba(255,255,255,0.08);
+      transition: box-shadow 0.2s ease;
+    }
+    input[type="range"]:hover::-webkit-slider-thumb {
+      box-shadow: 0 1px 8px rgba(0,0,0,0.6), 0 0 0 5px rgba(255,255,255,0.12), 0 0 16px rgba(52,152,219,0.25);
     }
     input[type="range"]::-moz-range-thumb {
-      width: 14px; height: 14px; background: #fff;
+      width: 18px; height: 18px; background: #fff;
       border-radius: 50%; cursor: pointer; border: none;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.5), 0 0 0 3px rgba(255,255,255,0.08);
     }
-    * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.12) transparent; }
+    input[type="range"]:hover::-moz-range-thumb {
+      box-shadow: 0 1px 8px rgba(0,0,0,0.6), 0 0 0 5px rgba(255,255,255,0.12), 0 0 16px rgba(52,152,219,0.25);
+    }
+    input[type="range"] {
+      transition: opacity 0.15s ease;
+    }
+    input[type="range"]:hover {
+      opacity: 1 !important;
+    }
+
+    /* Scrollbar — dark themed */
+    * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.10) rgba(255,255,255,0.03); }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.10); border-radius: 4px; border: 2px solid transparent; background-clip: content-box; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18); border: 2px solid transparent; background-clip: content-box; }
+
+    /* Number input */
     input[type="number"] {
       background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
-      color: #fff; border-radius: 4px; padding: 4px 6px; font-size: 12px;
-      font-weight: 600; width: 64px; text-align: center; outline: none;
+      color: #fff; border-radius: 6px; padding: 5px 8px; font-size: 13px;
+      font-weight: 600; width: 68px; text-align: center; outline: none;
       font-variant-numeric: tabular-nums;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
-    input[type="number"]:focus { border-color: rgba(52,152,219,0.5); }
+    input[type="number"]:focus {
+      border-color: rgba(52,152,219,0.5);
+      box-shadow: 0 0 0 3px rgba(52,152,219,0.12);
+    }
+
+    /* Smooth transitions for interactive elements */
+    button { transition: all 0.15s ease; }
+    details summary { transition: color 0.15s ease; }
   </style>
 
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -215,11 +247,11 @@ const baselinePIT = estimatePITRevenue(DEFAULT_BRACKETS);
 // ═══════════════════════════════════════════════════════════════
 function MiniSlider({ value, onChange, min, max, step, color, label, format }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-      {label && <span style={{ fontSize: 11, color: "#888", minWidth: 30, flexShrink: 0 }}>{label}</span>}
+    <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+      {label && <span style={{ fontSize: 12, color: "#888", minWidth: 32, flexShrink: 0 }}>{label}</span>}
       <input type="range" min={min} max={max} step={step} value={value} onChange={e => onChange(parseFloat(e.target.value))}
-        style={{ flex: 1, height: 4, appearance: "none", WebkitAppearance: "none", background: `linear-gradient(to right, ${color} 0%, ${color} ${((value - min) / (max - min)) * 100}%, rgba(255,255,255,0.1) ${((value - min) / (max - min)) * 100}%, rgba(255,255,255,0.1) 100%)`, borderRadius: 2, outline: "none", cursor: "pointer", minWidth: 40 }} />
-      <span style={{ fontSize: 12, fontWeight: 700, color: "#fff", fontVariantNumeric: "tabular-nums", minWidth: 42, textAlign: "right" }}>
+        style={{ flex: 1, height: 5, appearance: "none", WebkitAppearance: "none", background: `linear-gradient(to right, ${color} 0%, ${color} ${((value - min) / (max - min)) * 100}%, rgba(255,255,255,0.08) ${((value - min) / (max - min)) * 100}%, rgba(255,255,255,0.08) 100%)`, borderRadius: 3, outline: "none", cursor: "pointer", minWidth: 40 }} />
+      <span style={{ fontSize: 13, fontWeight: 700, color: "#fff", fontVariantNumeric: "tabular-nums", minWidth: 48, textAlign: "right" }}>
         {format ? format(value) : value.toFixed(2)}
       </span>
     </div>
@@ -232,28 +264,28 @@ function ExpenseSlider({ item, value, onChange }) {
   const adminDollars = value * (item.adminPct / 100);
   const frontlineDollars = value - adminDollars;
   return (
-    <div style={{ padding: "8px 12px", marginBottom: 4, borderRadius: 6, background: changed ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.015)", border: `1px solid ${changed ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.03)"}` }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, flex: 1 }}>
-          <div style={{ width: 8, height: 8, borderRadius: 2, background: item.color, flexShrink: 0 }} />
-          <span style={{ fontSize: 12, fontWeight: 600, color: "#d0d0d0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.name}</span>
+    <div style={{ padding: "10px 14px", marginBottom: 6, borderRadius: 8, background: changed ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.015)", border: `1px solid ${changed ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.03)"}`, borderLeft: `3px solid ${item.color}`, transition: "background 0.15s ease, border-color 0.15s ease" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
+          <div style={{ width: 10, height: 10, borderRadius: 3, background: item.color, flexShrink: 0, boxShadow: `0 0 6px ${item.color}44` }} />
+          <span style={{ fontSize: 13, fontWeight: 600, color: "#d0d0d0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.name}</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: "#fff", fontVariantNumeric: "tabular-nums" }}>{f(value)}</span>
-          {changed && <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: pct > 0 ? "rgba(231,76,60,0.2)" : "rgba(46,204,113,0.2)", color: pct > 0 ? "#e74c3c" : "#2ecc71" }}>{pct > 0 ? "+" : ""}{pct.toFixed(0)}%</span>}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: "#fff", fontVariantNumeric: "tabular-nums" }}>{f(value)}</span>
+          {changed && <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 4, background: pct > 0 ? "rgba(231,76,60,0.2)" : "rgba(46,204,113,0.2)", color: pct > 0 ? "#e74c3c" : "#2ecc71" }}>{pct > 0 ? "+" : ""}{pct.toFixed(0)}%</span>}
         </div>
       </div>
       <input type="range" min={0} max={item.baseline * 2.5} step={0.05} value={value} onChange={e => onChange(item.id, parseFloat(e.target.value))}
-        style={{ width: "100%", height: 4, appearance: "none", WebkitAppearance: "none", background: `linear-gradient(to right, ${item.color} 0%, ${item.color} ${(value / (item.baseline * 2.5)) * 100}%, rgba(255,255,255,0.08) ${(value / (item.baseline * 2.5)) * 100}%, rgba(255,255,255,0.08) 100%)`, borderRadius: 2, outline: "none", cursor: "pointer" }} />
+        style={{ width: "100%", height: 5, appearance: "none", WebkitAppearance: "none", background: `linear-gradient(to right, ${item.color} 0%, ${item.color} ${(value / (item.baseline * 2.5)) * 100}%, rgba(255,255,255,0.06) ${(value / (item.baseline * 2.5)) * 100}%, rgba(255,255,255,0.06) 100%)`, borderRadius: 3, outline: "none", cursor: "pointer" }} />
       {item.adminPct > 0 && (
-        <div style={{ display: "flex", gap: 2, marginTop: 3, height: 3, borderRadius: 2, overflow: "hidden" }}>
-          <div style={{ width: `${100 - item.adminPct}%`, background: "#2ecc71", opacity: 0.6 }} title={`Frontline: ${f(frontlineDollars)}`} />
-          <div style={{ width: `${item.adminPct}%`, background: "#e74c3c", opacity: 0.6 }} title={`Admin: ${f(adminDollars)}`} />
+        <div style={{ display: "flex", gap: 2, marginTop: 5, height: 6, borderRadius: 3, overflow: "hidden" }}>
+          <div style={{ width: `${100 - item.adminPct}%`, background: "#2ecc71", opacity: 0.55, transition: "width 0.3s ease" }} title={`Frontline: ${f(frontlineDollars)}`} />
+          <div style={{ width: `${item.adminPct}%`, background: "#e74c3c", opacity: 0.55, transition: "width 0.3s ease" }} title={`Admin: ${f(adminDollars)}`} />
         </div>
       )}
-      <div style={{ fontSize: 10, color: "#666", marginTop: 2, display: "flex", justifyContent: "space-between" }}>
+      <div style={{ fontSize: 11, color: "#606060", marginTop: 4, display: "flex", justifyContent: "space-between", lineHeight: 1.4 }}>
         <span>{item.desc}</span>
-        {item.adminPct > 0 && <span style={{ flexShrink: 0, marginLeft: 8 }}>Admin: {item.adminPct}%</span>}
+        {item.adminPct > 0 && <span style={{ flexShrink: 0, marginLeft: 10, color: "#777", fontWeight: 500 }}>Admin: {item.adminPct}%</span>}
       </div>
     </div>
   );
@@ -261,10 +293,10 @@ function ExpenseSlider({ item, value, onChange }) {
 
 function StatCard({ title, value, sub, color, small }) {
   return (
-    <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: small ? "10px 12px" : "14px 16px", flex: "1 1 120px", minWidth: small ? 100 : 130 }}>
-      <div style={{ fontSize: 10, color: "#777", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 2 }}>{title}</div>
-      <div style={{ fontSize: small ? 18 : 22, fontWeight: 800, color, fontVariantNumeric: "tabular-nums" }}>{value}</div>
-      {sub && <div style={{ fontSize: 10, color: "#555", marginTop: 1 }}>{sub}</div>}
+    <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderLeft: `3px solid ${color}`, borderRadius: 10, padding: small ? "12px 16px" : "16px 20px", flex: "1 1 140px", minWidth: small ? 110 : 150, boxShadow: `inset 0 0 20px ${color}08, 0 2px 8px rgba(0,0,0,0.15)` }}>
+      <div style={{ fontSize: 10, color: "#888", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4, fontWeight: 600 }}>{title}</div>
+      <div style={{ fontSize: small ? 20 : 26, fontWeight: 800, color, fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em" }}>{value}</div>
+      {sub && <div style={{ fontSize: 11, color: "#555", marginTop: 3 }}>{sub}</div>}
     </div>
   );
 }
@@ -386,21 +418,37 @@ function BCBudgetV2() {
     <div style={{ fontFamily: "'IBM Plex Sans', -apple-system, sans-serif", background: "linear-gradient(150deg, #080a0f 0%, #0f1319 40%, #0a0e14 100%)", color: "#e0e0e0", minHeight: "100vh" }}>
 
       {/* HEADER */}
-      <div style={{ padding: "16px 20px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)", background: "rgba(0,0,0,0.3)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8 }}>
+      <div style={{ padding: "24px 28px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)", background: "linear-gradient(180deg, rgba(15,18,26,0.95) 0%, rgba(8,10,15,0.98) 100%)", position: "relative", overflow: "hidden" }}>
+        {/* Subtle gradient glow behind header */}
+        <div style={{ position: "absolute", top: -60, right: -60, width: 260, height: 260, background: "radial-gradient(circle, rgba(52,152,219,0.06) 0%, transparent 70%)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", top: -40, left: -40, width: 200, height: 200, background: "radial-gradient(circle, rgba(231,76,60,0.04) 0%, transparent 70%)", pointerEvents: "none" }} />
+
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12, position: "relative" }}>
           <div>
-            <div style={{ fontSize: 9, letterSpacing: 2, color: "#555", textTransform: "uppercase" }}>Interactive Scenario Planner</div>
-            <h1 style={{ fontSize: 20, fontWeight: 800, margin: "2px 0", background: "linear-gradient(135deg, #fff 0%, #99a)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+            <div style={{ fontSize: 10, letterSpacing: 2.5, color: "#5a5e6a", textTransform: "uppercase", fontWeight: 600, marginBottom: 4 }}>Interactive Scenario Planner</div>
+            <h1 style={{ fontSize: 26, fontWeight: 800, margin: "0 0 2px", background: "linear-gradient(135deg, #ffffff 0%, #b0b8c8 60%, #7a8498 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", letterSpacing: "-0.02em" }}>
               BC Budget 2026 &mdash; Deep Dive
             </h1>
           </div>
-          <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-            {[["reset", "\u21BA Reset"], ["my_budget", "\u{1F4A1} My Budget"], ["admin_1975", "\u{1F4C9} 1975 Admin"], ["admin_ai", "\u{1F916} AI Admin"]].map(([k, l]) => (
-              <button key={k} onClick={() => applyPreset(k)} style={{ padding: "5px 10px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "#aaa", fontSize: 11, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>{l}</button>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+            {[["reset", "\u21BA Reset", false], ["my_budget", "\u{1F4A1} My Budget", true], ["admin_1975", "\u{1F4C9} 1975 Admin", false], ["admin_ai", "\u{1F916} AI Admin", false]].map(([k, l, primary]) => (
+              <button key={k} onClick={() => applyPreset(k)} style={{
+                padding: "7px 16px",
+                background: primary ? "linear-gradient(135deg, rgba(52,152,219,0.2) 0%, rgba(46,204,113,0.15) 100%)" : "rgba(255,255,255,0.04)",
+                border: `1px solid ${primary ? "rgba(52,152,219,0.35)" : "rgba(255,255,255,0.08)"}`,
+                borderRadius: 20,
+                color: primary ? "#fff" : "#999",
+                fontSize: 12,
+                fontWeight: primary ? 700 : 600,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                letterSpacing: primary ? "0.01em" : "0",
+                boxShadow: primary ? "0 0 12px rgba(52,152,219,0.15)" : "none",
+              }}>{l}</button>
             ))}
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap", position: "relative" }}>
           <StatCard title="Revenue" value={f(totalRevenue)} sub={`PIT: ${f(effectiveRevenues.pit)} | CIT: ${f(effectiveRevenues.cit)}`} color="#2ecc71" />
           <StatCard title="Expenses" value={f(totalExpense)} sub={`Admin: ${f(totalAdmin)} (${(totalAdmin/totalExpense*100).toFixed(0)}%)`} color="#e74c3c" />
           <StatCard title={deficit >= 0 ? "Surplus" : "Deficit"} value={f(Math.abs(deficit))} sub={change > 0.1 ? `${f(change)} better` : change < -0.1 ? `${f(Math.abs(change))} worse` : "At baseline"} color={deficit >= 0 ? "#2ecc71" : "#e74c3c"} />
@@ -410,57 +458,74 @@ function BCBudgetV2() {
       </div>
 
       {/* TABS */}
-      <div style={{ display: "flex", borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "0 20px", background: "rgba(0,0,0,0.15)", overflowX: "auto" }}>
+      <div style={{ display: "flex", gap: 4, borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "6px 28px", background: "rgba(0,0,0,0.15)", overflowX: "auto" }}>
         {tabs.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} style={{ padding: "10px 16px", background: "none", border: "none", borderBottom: tab === t.id ? "2px solid #3498db" : "2px solid transparent", color: tab === t.id ? "#fff" : "#666", fontSize: 12, fontWeight: tab === t.id ? 700 : 500, cursor: "pointer", whiteSpace: "nowrap" }}>{t.label}</button>
+          <button key={t.id} onClick={() => setTab(t.id)} style={{
+            padding: "8px 18px",
+            background: tab === t.id ? "rgba(52,152,219,0.15)" : "none",
+            border: tab === t.id ? "1px solid rgba(52,152,219,0.25)" : "1px solid transparent",
+            borderRadius: 20,
+            color: tab === t.id ? "#fff" : "#666",
+            fontSize: 13,
+            fontWeight: tab === t.id ? 700 : 500,
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+            letterSpacing: "0.01em",
+          }}>{t.label}</button>
         ))}
       </div>
 
       {/* CONTENT */}
-      <div style={{ padding: "16px 20px", maxHeight: "calc(100vh - 240px)", overflowY: "auto" }}>
+      <div style={{ padding: "20px 28px", maxHeight: "calc(100vh - 280px)", overflowY: "auto" }}>
 
         {/* OVERVIEW TAB */}
         {tab === "overview" && (
           <div>
             {/* Sector bar */}
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                <span style={{ fontSize: 11, color: "#888", fontWeight: 600 }}>EXPENSES BY SECTOR</span>
-                <span style={{ fontSize: 11, color: "#fff", fontWeight: 700 }}>{f(totalExpense)}</span>
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                <span style={{ fontSize: 11, color: "#888", fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>Expenses by Sector</span>
+                <span style={{ fontSize: 12, color: "#fff", fontWeight: 700 }}>{f(totalExpense)}</span>
               </div>
-              <div style={{ display: "flex", height: 24, borderRadius: 5, overflow: "hidden", gap: 1 }}>
+              <div style={{ display: "flex", height: 32, borderRadius: 8, overflow: "hidden", gap: 1, boxShadow: "0 2px 8px rgba(0,0,0,0.2)" }}>
                 {SECTORS.map(s => {
                   const pct = (sectorTotals[s.id].total / totalExpense) * 100;
                   if (pct < 0.3) return null;
-                  return <div key={s.id} title={`${s.name}: ${f(sectorTotals[s.id].total)} (${pct.toFixed(1)}%)`} style={{ width: `${pct}%`, background: s.color, opacity: 0.8, cursor: "pointer" }} />;
+                  return <div key={s.id} title={`${s.name}: ${f(sectorTotals[s.id].total)} (${pct.toFixed(1)}%)`} style={{ width: `${pct}%`, background: s.color, opacity: 0.8, cursor: "pointer", transition: "opacity 0.15s ease" }} onMouseEnter={e => e.target.style.opacity = 1} onMouseLeave={e => e.target.style.opacity = 0.8} />;
                 })}
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 12px", marginTop: 6 }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 16px", marginTop: 10 }}>
                 {SECTORS.map(s => {
                   const t = sectorTotals[s.id].total;
                   if (t < 0.1) return null;
-                  return <span key={s.id} style={{ fontSize: 10, color: "#888" }}><span style={{ color: s.color }}>{"\u25CF"}</span> {s.name}: {f(t)}</span>;
+                  return <span key={s.id} style={{ fontSize: 11, color: "#999" }}><span style={{ color: s.color, marginRight: 3 }}>{"\u25CF"}</span>{s.name}: {f(t)}</span>;
                 })}
               </div>
             </div>
 
-            {/* Admin vs Frontline */}
-            <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
-              <div style={{ flex: "1 1 200px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: 14 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "#ccc", marginBottom: 8 }}>{"\u{1F4B0}"} Admin vs Frontline Split</div>
-                <div style={{ display: "flex", height: 20, borderRadius: 4, overflow: "hidden", marginBottom: 6 }}>
-                  <div style={{ width: `${(totalFrontline/totalExpense)*100}%`, background: "#2ecc71", transition: "width 0.3s" }} />
-                  <div style={{ width: `${(totalAdmin/totalExpense)*100}%`, background: "#e74c3c", transition: "width 0.3s" }} />
+            {/* Admin vs Frontline + Deficit — Key Insight Cards */}
+            <div style={{ display: "flex", gap: 14, marginBottom: 24, flexWrap: "wrap" }}>
+              <div style={{ flex: "1 1 280px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: 20 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#ccc", marginBottom: 12, letterSpacing: "0.01em" }}>{"\u{1F4B0}"} Admin vs Frontline Split</div>
+                <div style={{ display: "flex", height: 32, borderRadius: 6, overflow: "hidden", marginBottom: 10, position: "relative", boxShadow: "0 2px 8px rgba(0,0,0,0.2)" }}>
+                  <div style={{ width: `${(totalFrontline/totalExpense)*100}%`, background: "linear-gradient(135deg, #2ecc71, #27ae60)", transition: "width 0.3s", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+                    {(totalFrontline/totalExpense)*100 > 15 && <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.9)", textShadow: "0 1px 2px rgba(0,0,0,0.3)" }}>{(totalFrontline/totalExpense*100).toFixed(0)}% Frontline</span>}
+                  </div>
+                  <div style={{ width: `${(totalAdmin/totalExpense)*100}%`, background: "linear-gradient(135deg, #e74c3c, #c0392b)", transition: "width 0.3s", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {(totalAdmin/totalExpense)*100 > 8 && <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.9)", textShadow: "0 1px 2px rgba(0,0,0,0.3)" }}>{(totalAdmin/totalExpense*100).toFixed(0)}% Admin</span>}
+                  </div>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
-                  <span style={{ color: "#2ecc71" }}>{"\u{1F7E2}"} Frontline: {f(totalFrontline)} ({(totalFrontline/totalExpense*100).toFixed(1)}%)</span>
-                  <span style={{ color: "#e74c3c" }}>{"\u{1F534}"} Admin: {f(totalAdmin)} ({(totalAdmin/totalExpense*100).toFixed(1)}%)</span>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                  <span style={{ color: "#2ecc71", fontWeight: 600 }}>{"\u{1F7E2}"} {f(totalFrontline)}</span>
+                  <span style={{ color: "#e74c3c", fontWeight: 600 }}>{"\u{1F534}"} {f(totalAdmin)}</span>
                 </div>
               </div>
-              <div style={{ flex: "1 1 200px", background: deficit >= 0 ? "rgba(46,204,113,0.06)" : "rgba(231,76,60,0.06)", border: `1px solid ${deficit >= 0 ? "rgba(46,204,113,0.15)" : "rgba(231,76,60,0.15)"}`, borderRadius: 10, padding: 14 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "#ccc", marginBottom: 4 }}>{deficit >= 0 ? "\u2705 Budget Surplus" : "\u{1F534} Budget Deficit"}</div>
-                <div style={{ fontSize: 28, fontWeight: 800, color: deficit >= 0 ? "#2ecc71" : "#e74c3c" }}>{f(Math.abs(deficit))}</div>
-                <div style={{ fontSize: 11, color: "#666" }}>Baseline: $13.3B deficit {change !== 0 && (<span style={{ color: change > 0 ? "#2ecc71" : "#e74c3c", fontWeight: 700 }}> {"\u2192"} {change > 0 ? "\u25B2" : "\u25BC"} {f(Math.abs(change))}</span>)}</div>
+              <div style={{ flex: "1 1 280px", background: deficit >= 0 ? "rgba(46,204,113,0.06)" : "rgba(231,76,60,0.05)", border: `1px solid ${deficit >= 0 ? "rgba(46,204,113,0.15)" : "rgba(231,76,60,0.12)"}`, borderRadius: 12, padding: 20, position: "relative", overflow: "hidden" }}>
+                {/* Dramatic glow behind deficit number */}
+                <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: 200, height: 200, background: `radial-gradient(circle, ${deficit >= 0 ? "rgba(46,204,113,0.08)" : "rgba(231,76,60,0.08)"} 0%, transparent 70%)`, pointerEvents: "none" }} />
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#ccc", marginBottom: 6, position: "relative" }}>{deficit >= 0 ? "\u2705 Budget Surplus" : "\u{1F534} Budget Deficit"}</div>
+                <div style={{ fontSize: 38, fontWeight: 800, color: deficit >= 0 ? "#2ecc71" : "#e74c3c", letterSpacing: "-0.03em", position: "relative", lineHeight: 1.1 }}>{f(Math.abs(deficit))}</div>
+                <div style={{ fontSize: 12, color: "#666", marginTop: 8, position: "relative" }}>Baseline: $13.3B deficit {change !== 0 && (<span style={{ color: change > 0 ? "#2ecc71" : "#e74c3c", fontWeight: 700 }}> {"\u2192"} {change > 0 ? "\u25B2" : "\u25BC"} {f(Math.abs(change))}</span>)}</div>
               </div>
             </div>
 
@@ -469,21 +534,22 @@ function BCBudgetV2() {
               const st = sectorTotals[sector.id];
               if (st.total < 0.05) return null;
               const adminPct = st.total > 0 ? (st.admin / st.total * 100) : 0;
+              const isOpen = expandedSectors.has(sector.id);
               return (
-                <div key={sector.id} style={{ marginBottom: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 8, overflow: "hidden" }}>
-                  <div onClick={() => toggleSector(sector.id)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", cursor: "pointer" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span>{sector.icon}</span>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: "#ddd" }}>{sector.name}</span>
-                      <span style={{ fontSize: 11, color: "#888" }}>{f(st.total)}</span>
+                <div key={sector.id} style={{ marginBottom: 10, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderLeft: `3px solid ${sector.color}`, borderRadius: 10, overflow: "hidden", transition: "border-color 0.15s ease" }}>
+                  <div onClick={() => toggleSector(sector.id)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 18px", cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.025)"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{ fontSize: 16 }}>{sector.icon}</span>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: "#ddd" }}>{sector.name}</span>
+                      <span style={{ fontSize: 12, color: "#888", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{f(st.total)}</span>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      {adminPct > 0 && <span style={{ fontSize: 10, color: adminPct > 25 ? "#e74c3c" : "#888" }}>Admin: {adminPct.toFixed(0)}%</span>}
-                      <span style={{ color: "#555", fontSize: 12 }}>{expandedSectors.has(sector.id) ? "\u25BE" : "\u25B8"}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      {adminPct > 0 && <span style={{ fontSize: 11, color: adminPct > 25 ? "#e74c3c" : "#888", fontWeight: 500 }}>Admin: {adminPct.toFixed(0)}%</span>}
+                      <span style={{ color: "#555", fontSize: 14, transition: "transform 0.2s ease", transform: isOpen ? "rotate(0deg)" : "rotate(-90deg)", display: "inline-block" }}>{"\u25BE"}</span>
                     </div>
                   </div>
-                  {expandedSectors.has(sector.id) && (
-                    <div style={{ padding: "0 10px 10px" }}>
+                  {isOpen && (
+                    <div style={{ padding: "0 14px 14px" }}>
                       {st.items.map(item => (
                         <ExpenseSlider key={item.id} item={item} value={expenses[item.id]} onChange={handleExpense} />
                       ))}
@@ -498,30 +564,30 @@ function BCBudgetV2() {
         {/* TAX BRACKETS TAB */}
         {tab === "taxes" && (
           <div>
-            <div style={{ fontSize: 12, color: "#888", marginBottom: 16, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 13, color: "#888", marginBottom: 20, lineHeight: 1.6 }}>
               Edit each bracket's tax rate to model alternative approaches. The PIT revenue estimate updates in real-time.
               The government raised only the lowest bracket from 5.06% {"\u2192"} 5.60% while leaving all others untouched.
               Try the "{"\u{1F4A1}"} My Budget" preset to see an alternative: lower all personal brackets, raise corporate tax, drop PST to 5%, and slash admin overhead with AI.
             </div>
 
             {/* Corporate Rate */}
-            <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: 14, marginBottom: 16 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: "#e67e22" }}>{"\u{1F3E2}"} Corporate Income Tax Rate</span>
-                <span style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>{corpRate.toFixed(1)}%</span>
+            <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderLeft: "3px solid #e67e22", borderRadius: 10, padding: 18, marginBottom: 20 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: "#e67e22" }}>{"\u{1F3E2}"} Corporate Income Tax Rate</span>
+                <span style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>{corpRate.toFixed(1)}%</span>
               </div>
               <MiniSlider value={corpRate} onChange={setCorpRate} min={8} max={20} step={0.5} color="#e67e22" format={v => `${v.toFixed(1)}%`} />
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#666", marginTop: 4 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#666", marginTop: 6 }}>
                 <span>Baseline: 12.0% (general rate)</span>
                 <span>Est. Revenue: {f(effectiveRevenues.cit)} {corpRate !== DEFAULT_CORP_RATE && <span style={{ color: corpMultiplier > 1 ? "#2ecc71" : "#e74c3c" }}>({corpMultiplier > 1 ? "+" : ""}{((corpMultiplier - 1) * 100).toFixed(0)}%)</span>}</span>
               </div>
             </div>
 
             {/* Personal Brackets */}
-            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: 14 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: "#e74c3c" }}>{"\u{1F464}"} Personal Income Tax Brackets</span>
-                <span style={{ fontSize: 12, color: "#888" }}>Est. PIT Revenue: <span style={{ color: "#fff", fontWeight: 700 }}>{f(effectiveRevenues.pit)}</span></span>
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderLeft: "3px solid #e74c3c", borderRadius: 10, padding: 18 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: "#e74c3c" }}>{"\u{1F464}"} Personal Income Tax Brackets</span>
+                <span style={{ fontSize: 13, color: "#888" }}>Est. PIT Revenue: <span style={{ color: "#fff", fontWeight: 700 }}>{f(effectiveRevenues.pit)}</span></span>
               </div>
 
               {brackets.map((b) => {
@@ -529,26 +595,27 @@ function BCBudgetV2() {
                 const isGovChanged = Math.abs(DEFAULT_BRACKETS.find(d => d.id === b.id).rate - b.oldRate) > 0.01;
                 return (
                   <div key={b.id} style={{
-                    padding: "10px 12px", marginBottom: 6, borderRadius: 8,
+                    padding: "12px 14px", marginBottom: 8, borderRadius: 8,
                     background: changed ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.015)",
                     border: `1px solid ${isGovChanged && b.rate === DEFAULT_BRACKETS.find(d => d.id === b.id).rate ? "rgba(231,76,60,0.3)" : changed ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.04)"}`,
+                    transition: "background 0.15s ease",
                   }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                       <div>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: "#d0d0d0" }}>{b.label}</span>
-                        <span style={{ fontSize: 11, color: "#666", marginLeft: 8 }}>{b.range}</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: "#d0d0d0" }}>{b.label}</span>
+                        <span style={{ fontSize: 12, color: "#666", marginLeft: 10 }}>{b.range}</span>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ fontSize: 10, color: "#666" }}>Pre-2026: {b.oldRate}%</span>
-                        <span style={{ fontSize: 10, color: "#444" }}>{"\u2192"}</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 11, color: "#666" }}>Pre-2026: {b.oldRate}%</span>
+                        <span style={{ fontSize: 11, color: "#444" }}>{"\u2192"}</span>
                         <input type="number" value={b.rate} step={0.1} min={0} max={40}
                           onChange={e => updateBracketRate(b.id, parseFloat(e.target.value) || 0)}
-                          style={{ width: 58 }} />
-                        <span style={{ fontSize: 11, color: "#888" }}>%</span>
+                          style={{ width: 62 }} />
+                        <span style={{ fontSize: 12, color: "#888" }}>%</span>
                       </div>
                     </div>
                     <MiniSlider value={b.rate} onChange={(v) => updateBracketRate(b.id, v)} min={0} max={30} step={0.1} color={changed ? "#e74c3c" : "#3498db"} format={v => `${v.toFixed(2)}%`} />
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#555", marginTop: 2 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#555", marginTop: 4 }}>
                       <span>~{(b.population / 1000).toFixed(0)}K taxpayers in bracket</span>
                       {changed && <span style={{ color: b.rate > b.oldRate ? "#e74c3c" : "#2ecc71", fontWeight: 600 }}>
                         {b.rate > b.oldRate ? "\u2191" : "\u2193"} {Math.abs(b.rate - b.oldRate).toFixed(2)}pp change
@@ -558,7 +625,7 @@ function BCBudgetV2() {
                 );
               })}
 
-              <div style={{ marginTop: 12, padding: "10px 12px", background: "rgba(231,76,60,0.06)", border: "1px solid rgba(231,76,60,0.15)", borderRadius: 8, fontSize: 11, color: "#bbb", lineHeight: 1.5 }}>
+              <div style={{ marginTop: 16, padding: "14px 16px", background: "rgba(231,76,60,0.06)", border: "1px solid rgba(231,76,60,0.15)", borderRadius: 10, fontSize: 12, color: "#bbb", lineHeight: 1.6 }}>
                 <strong style={{ color: "#e74c3c" }}>The fairness problem:</strong> The 2026 budget raised only the 1st bracket (affecting ~1.68M low/middle income taxpayers)
                 by 0.54pp. The top bracket (20.5% on $252K+, ~75K taxpayers) was untouched. The tax reduction credit
                 only offsets this for those under ~$45K &mdash; leaving the $45K&ndash;$95K middle class bearing the full weight.
@@ -572,22 +639,22 @@ function BCBudgetV2() {
         {/* SPENDING TAB */}
         {tab === "spending" && (
           <div>
-            <div style={{ fontSize: 12, color: "#888", marginBottom: 12, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 13, color: "#888", marginBottom: 16, lineHeight: 1.6 }}>
               Granular spending controls by sector. The green/red bar under each item shows the frontline vs admin split.
               Click sector headers to expand. Debt servicing ($6.5B) is non-discretionary.
             </div>
             {/* Revenue mini-controls */}
-            <details style={{ marginBottom: 12 }}>
-              <summary style={{ fontSize: 12, fontWeight: 700, color: "#aaa", cursor: "pointer", marginBottom: 8 }}>{"\u{1F4C8}"} Revenue Adjustments (click to expand)</summary>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 4 }}>
+            <details style={{ marginBottom: 16 }}>
+              <summary style={{ fontSize: 13, fontWeight: 700, color: "#aaa", cursor: "pointer", marginBottom: 10, letterSpacing: "0.01em" }}>{"\u{1F4C8}"} Revenue Adjustments (click to expand)</summary>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 6 }}>
                 {REVENUE_ITEMS.filter(i => i.id !== "pit" && i.id !== "cit").map(item => (
-                  <div key={item.id} style={{ padding: "6px 10px", background: "rgba(255,255,255,0.02)", borderRadius: 6, border: "1px solid rgba(255,255,255,0.04)" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 2 }}>
-                      <span style={{ color: "#aaa" }}><span style={{ color: item.color }}>{"\u25CF"}</span> {item.name}</span>
-                      <span style={{ color: "#fff", fontWeight: 600 }}>{f(revenues[item.id])}</span>
+                  <div key={item.id} style={{ padding: "8px 12px", background: "rgba(255,255,255,0.02)", borderRadius: 8, border: "1px solid rgba(255,255,255,0.04)", borderLeft: `3px solid ${item.color}` }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
+                      <span style={{ color: "#aaa" }}><span style={{ color: item.color, marginRight: 4 }}>{"\u25CF"}</span>{item.name}</span>
+                      <span style={{ color: "#fff", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{f(revenues[item.id])}</span>
                     </div>
                     <input type="range" min={0} max={item.baseline * 2} step={0.1} value={revenues[item.id]} onChange={e => handleRevenue(item.id, parseFloat(e.target.value))}
-                      style={{ width: "100%", height: 3, appearance: "none", WebkitAppearance: "none", background: `linear-gradient(to right, ${item.color} 0%, ${item.color} ${(revenues[item.id] / (item.baseline * 2)) * 100}%, rgba(255,255,255,0.06) ${(revenues[item.id] / (item.baseline * 2)) * 100}%, rgba(255,255,255,0.06) 100%)`, borderRadius: 2, outline: "none", cursor: "pointer" }} />
+                      style={{ width: "100%", height: 4, appearance: "none", WebkitAppearance: "none", background: `linear-gradient(to right, ${item.color} 0%, ${item.color} ${(revenues[item.id] / (item.baseline * 2)) * 100}%, rgba(255,255,255,0.06) ${(revenues[item.id] / (item.baseline * 2)) * 100}%, rgba(255,255,255,0.06) 100%)`, borderRadius: 3, outline: "none", cursor: "pointer" }} />
                   </div>
                 ))}
               </div>
@@ -598,13 +665,13 @@ function BCBudgetV2() {
               if (st.total < 0.05) return null;
               const isOpen = expandedSectors.has(sector.id);
               return (
-                <div key={sector.id} style={{ marginBottom: 6, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 8 }}>
-                  <div onClick={() => toggleSector(sector.id)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", cursor: "pointer" }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "#ddd" }}>{sector.icon} {sector.name} &mdash; {f(st.total)}</span>
-                    <span style={{ color: "#555" }}>{isOpen ? "\u25BE" : "\u25B8"}</span>
+                <div key={sector.id} style={{ marginBottom: 10, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderLeft: `3px solid ${sector.color}`, borderRadius: 10 }}>
+                  <div onClick={() => toggleSector(sector.id)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 18px", cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.025)"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: "#ddd" }}>{sector.icon} {sector.name} &mdash; {f(st.total)}</span>
+                    <span style={{ color: "#555", fontSize: 14, transition: "transform 0.2s ease", transform: isOpen ? "rotate(0deg)" : "rotate(-90deg)", display: "inline-block" }}>{"\u25BE"}</span>
                   </div>
                   {isOpen && (
-                    <div style={{ padding: "0 8px 8px" }}>
+                    <div style={{ padding: "0 14px 14px" }}>
                       {st.items.map(item => <ExpenseSlider key={item.id} item={item} value={expenses[item.id]} onChange={handleExpense} />)}
                     </div>
                   )}
@@ -617,7 +684,7 @@ function BCBudgetV2() {
         {/* ADMIN ANALYSIS TAB */}
         {tab === "admin" && (
           <div>
-            <div style={{ fontSize: 12, color: "#888", marginBottom: 16, lineHeight: 1.6 }}>
+            <div style={{ fontSize: 13, color: "#888", marginBottom: 20, lineHeight: 1.7 }}>
               Administrative overhead has grown dramatically over the past 50 years while frontline service delivery has stagnated.
               BC health authorities have seen corporate expenditures outpace healthcare delivery investments. Education admin
               (3,080 FTE) grew by 339 positions since 2016-17 even as overall enrollment shifted. Canada spends ~17% of healthcare
@@ -626,45 +693,45 @@ function BCBudgetV2() {
             </div>
 
             {/* Historical admin trend */}
-            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: 16, marginBottom: 16 }}>
-              <h3 style={{ fontSize: 13, fontWeight: 700, color: "#ddd", marginBottom: 12 }}>{"\u{1F4C8}"} Admin Overhead Growth: 1975 {"\u2192"} 2026</h3>
-              <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 140, padding: "0 4px" }}>
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, padding: 20, marginBottom: 20 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: "#ddd", marginBottom: 14 }}>{"\u{1F4C8}"} Admin Overhead Growth: 1975 {"\u2192"} 2026</h3>
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 160, padding: "0 6px" }}>
                 {ADMIN_HISTORY.map((h, i) => (
-                  <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-                    <div style={{ display: "flex", gap: 1, alignItems: "flex-end", height: 110, width: "100%" }}>
-                      <div style={{ flex: 1, background: "#e74c3c", opacity: 0.7, borderRadius: "3px 3px 0 0", height: `${(h.healthAdminPct / 25) * 100}%`, transition: "height 0.3s" }} title={`Health admin: ${h.healthAdminPct}%`} />
-                      <div style={{ flex: 1, background: "#e67e22", opacity: 0.7, borderRadius: "3px 3px 0 0", height: `${(h.eduAdminPct / 25) * 100}%`, transition: "height 0.3s" }} title={`Edu admin: ${h.eduAdminPct}%`} />
+                  <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                    <div style={{ display: "flex", gap: 2, alignItems: "flex-end", height: 130, width: "100%" }}>
+                      <div style={{ flex: 1, background: "linear-gradient(to top, #e74c3c, #e74c3cbb)", borderRadius: "4px 4px 0 0", height: `${(h.healthAdminPct / 25) * 100}%`, transition: "height 0.3s" }} title={`Health admin: ${h.healthAdminPct}%`} />
+                      <div style={{ flex: 1, background: "linear-gradient(to top, #e67e22, #e67e22bb)", borderRadius: "4px 4px 0 0", height: `${(h.eduAdminPct / 25) * 100}%`, transition: "height 0.3s" }} title={`Edu admin: ${h.eduAdminPct}%`} />
                     </div>
-                    <span style={{ fontSize: 9, color: "#666", whiteSpace: "nowrap" }}>{h.year}</span>
+                    <span style={{ fontSize: 10, color: "#666", whiteSpace: "nowrap", fontWeight: 500 }}>{h.year}</span>
                   </div>
                 ))}
               </div>
-              <div style={{ display: "flex", gap: 16, justifyContent: "center", marginTop: 8 }}>
-                <span style={{ fontSize: 10, color: "#e74c3c" }}>{"\u{1F534}"} Health Admin %</span>
-                <span style={{ fontSize: 10, color: "#e67e22" }}>{"\u{1F7E0}"} Education Admin %</span>
+              <div style={{ display: "flex", gap: 20, justifyContent: "center", marginTop: 12 }}>
+                <span style={{ fontSize: 11, color: "#e74c3c", fontWeight: 500 }}>{"\u{1F534}"} Health Admin %</span>
+                <span style={{ fontSize: 11, color: "#e67e22", fontWeight: 500 }}>{"\u{1F7E0}"} Education Admin %</span>
               </div>
             </div>
 
             {/* Per-sector admin breakdown */}
-            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: 16, marginBottom: 16 }}>
-              <h3 style={{ fontSize: 13, fontWeight: 700, color: "#ddd", marginBottom: 12 }}>{"\u{1F3DB}\uFE0F"} Admin Dollars by Sector (Your Scenario)</h3>
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, padding: 20, marginBottom: 20 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: "#ddd", marginBottom: 14 }}>{"\u{1F3DB}\uFE0F"} Admin Dollars by Sector (Your Scenario)</h3>
               {SECTORS.filter(s => sectorTotals[s.id].admin > 0.05).map(s => {
                 const st = sectorTotals[s.id];
                 const adminPct = st.total > 0 ? (st.admin / st.total * 100) : 0;
                 return (
-                  <div key={s.id} style={{ marginBottom: 8 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 2 }}>
-                      <span style={{ color: "#bbb" }}>{s.icon} {s.name}</span>
-                      <span style={{ color: "#888" }}>{f(st.admin)} admin / {f(st.total)} total ({adminPct.toFixed(0)}%)</span>
+                  <div key={s.id} style={{ marginBottom: 10 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
+                      <span style={{ color: "#bbb", fontWeight: 500 }}>{s.icon} {s.name}</span>
+                      <span style={{ color: "#888", fontVariantNumeric: "tabular-nums" }}>{f(st.admin)} admin / {f(st.total)} total ({adminPct.toFixed(0)}%)</span>
                     </div>
-                    <div style={{ display: "flex", height: 12, borderRadius: 3, overflow: "hidden", gap: 1 }}>
-                      <div style={{ width: `${100 - adminPct}%`, background: "#2ecc71", opacity: 0.6 }} />
-                      <div style={{ width: `${adminPct}%`, background: "#e74c3c", opacity: 0.6 }} />
+                    <div style={{ display: "flex", height: 16, borderRadius: 4, overflow: "hidden", gap: 1, boxShadow: "0 1px 4px rgba(0,0,0,0.15)" }}>
+                      <div style={{ width: `${100 - adminPct}%`, background: "#2ecc71", opacity: 0.6, transition: "width 0.3s ease" }} />
+                      <div style={{ width: `${adminPct}%`, background: "#e74c3c", opacity: 0.6, transition: "width 0.3s ease" }} />
                     </div>
                   </div>
                 );
               })}
-              <div style={{ marginTop: 12, padding: "10px 12px", background: "rgba(52,152,219,0.08)", border: "1px solid rgba(52,152,219,0.15)", borderRadius: 8, fontSize: 11, color: "#bbb", lineHeight: 1.5 }}>
+              <div style={{ marginTop: 14, padding: "12px 16px", background: "rgba(52,152,219,0.08)", border: "1px solid rgba(52,152,219,0.15)", borderRadius: 10, fontSize: 12, color: "#bbb", lineHeight: 1.6 }}>
                 <strong style={{ color: "#3498db" }}>Total admin spend: {f(totalAdmin)}</strong> ({(totalAdmin/totalExpense*100).toFixed(1)}% of all spending).
                 Cutting admin to 1975 levels (~8% of health, ~6% of education) would save an estimated
                 <strong style={{ color: "#2ecc71" }}> {f(totalAdmin * 0.5)}</strong> &mdash; roughly {((totalAdmin * 0.5 / 13.3) * 100).toFixed(0)}% of the current deficit.
@@ -672,22 +739,22 @@ function BCBudgetV2() {
             </div>
 
             {/* Key admin items */}
-            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: 16, marginBottom: 16 }}>
-              <h3 style={{ fontSize: 13, fontWeight: 700, color: "#ddd", marginBottom: 8 }}>{"\u{1F3AF}"} Largest Admin-Heavy Line Items</h3>
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, padding: 20, marginBottom: 20 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: "#ddd", marginBottom: 12 }}>{"\u{1F3AF}"} Largest Admin-Heavy Line Items</h3>
               {EXPENSE_ITEMS.filter(i => i.adminPct >= 40).sort((a, b) => expenses[b.id] * b.adminPct - expenses[a.id] * a.adminPct).map(item => {
                 const val = expenses[item.id];
                 const adminDollars = val * (item.adminPct / 100);
                 const baselineAdmin = item.baseline * (item.adminPct / 100);
                 const saved = baselineAdmin - adminDollars;
                 return (
-                  <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,0.03)", fontSize: 11 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 0 }}>
-                      <div style={{ width: 6, height: 6, borderRadius: 1, background: item.color, flexShrink: 0 }} />
+                  <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.04)", fontSize: 12 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: 2, background: item.color, flexShrink: 0, boxShadow: `0 0 4px ${item.color}44` }} />
                       <span style={{ color: "#bbb", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.name}</span>
                     </div>
-                    <div style={{ display: "flex", gap: 12, alignItems: "center", flexShrink: 0 }}>
-                      <span style={{ color: "#e74c3c" }}>{item.adminPct}% admin</span>
-                      <span style={{ color: "#fff", fontWeight: 600 }}>{f(adminDollars)}</span>
+                    <div style={{ display: "flex", gap: 14, alignItems: "center", flexShrink: 0 }}>
+                      <span style={{ color: "#e74c3c", fontWeight: 500 }}>{item.adminPct}% admin</span>
+                      <span style={{ color: "#fff", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{f(adminDollars)}</span>
                       {saved > 0.05 && <span style={{ color: "#2ecc71", fontWeight: 600 }}>saved {f(saved)}</span>}
                     </div>
                   </div>
@@ -696,13 +763,13 @@ function BCBudgetV2() {
             </div>
 
             {/* The AI argument */}
-            <div style={{ background: "rgba(46,204,113,0.06)", border: "1px solid rgba(46,204,113,0.15)", borderRadius: 10, padding: 16, marginBottom: 16 }}>
-              <h3 style={{ fontSize: 13, fontWeight: 700, color: "#2ecc71", marginBottom: 8 }}>{"\u{1F916}"} The AI Administration Argument</h3>
-              <div style={{ fontSize: 12, color: "#bbb", lineHeight: 1.7 }}>
-                <p style={{ margin: "0 0 8px" }}>
+            <div style={{ background: "rgba(46,204,113,0.06)", border: "1px solid rgba(46,204,113,0.15)", borderRadius: 12, padding: 20, marginBottom: 20 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: "#2ecc71", marginBottom: 10 }}>{"\u{1F916}"} The AI Administration Argument</h3>
+              <div style={{ fontSize: 13, color: "#bbb", lineHeight: 1.7 }}>
+                <p style={{ margin: "0 0 10px" }}>
                   Modern AI can automate the majority of administrative tasks that have driven overhead growth since the 1970s:
                 </p>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 8, marginBottom: 10 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10, marginBottom: 14 }}>
                   {[
                     ["Scheduling & Coordination", "AI scheduling systems can replace entire admin teams managing appointments, shifts, and resource allocation."],
                     ["Billing & Claims Processing", "Automated processing of health claims, school funding formulas, and grant management."],
@@ -711,18 +778,18 @@ function BCBudgetV2() {
                     ["Procurement & Contracts", "AI-driven procurement eliminates the need for large purchasing departments and contract managers."],
                     ["Data & Decision Support", "Real-time dashboards replace monthly reports from teams of data analysts and business intelligence staff."],
                   ].map(([title, desc], i) => (
-                    <div key={i} style={{ padding: "8px 10px", background: "rgba(255,255,255,0.03)", borderRadius: 6, border: "1px solid rgba(255,255,255,0.05)" }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: "#2ecc71", marginBottom: 2 }}>{"\u2713"} {title}</div>
-                      <div style={{ fontSize: 10, color: "#888" }}>{desc}</div>
+                    <div key={i} style={{ padding: "10px 12px", background: "rgba(255,255,255,0.03)", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)" }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: "#2ecc71", marginBottom: 4 }}>{"\u2713"} {title}</div>
+                      <div style={{ fontSize: 11, color: "#888", lineHeight: 1.5 }}>{desc}</div>
                     </div>
                   ))}
                 </div>
-                <p style={{ margin: "0 0 8px" }}>
+                <p style={{ margin: "0 0 10px" }}>
                   <strong>BC Education:</strong> 3,080 FTE administrators manage 37,000 teachers &mdash; that's 1 admin per 12 teachers.
                   In 1975 it was closer to 1 per 25. Going back to 1975 ratios would eliminate ~1,500 admin positions.
                   With AI? 1 per 50+ is achievable, freeing ~2,400 positions worth of salary for frontline teaching.
                 </p>
-                <p style={{ margin: "0 0 8px" }}>
+                <p style={{ margin: "0 0 10px" }}>
                   <strong>BC Health:</strong> Corporate expenditures have increased in every BC health authority, outpacing healthcare delivery
                   investments. The CST IT project alone ballooned to $799M (Ontario did similar for half the cost). Fraser Health
                   overran its budget by $1.1B (20%) in a single year. AI can't fix all of this, but automating the administrative
@@ -734,7 +801,7 @@ function BCBudgetV2() {
               </div>
             </div>
 
-            <div style={{ fontSize: 11, color: "#666", lineHeight: 1.5, padding: 12, background: "rgba(255,255,255,0.02)", borderRadius: 8 }}>
+            <div style={{ fontSize: 12, color: "#666", lineHeight: 1.6, padding: 16, background: "rgba(255,255,255,0.02)", borderRadius: 10 }}>
               <strong>Data sources:</strong> BC Budget 2026 fiscal plan, CIHI National Health Expenditure Trends 2024,
               BC Education by the Numbers (Dec 2025: 37,000 FTE teachers, 3,080 FTE administrators),
               Fraser Institute Education Spending in Public Schools 2025, PwC/MNP/RBC/TD Economics budget analyses.
@@ -746,8 +813,8 @@ function BCBudgetV2() {
       </div>
 
       {/* Footer */}
-      <div style={{ padding: "12px 20px", borderTop: "1px solid rgba(255,255,255,0.05)", textAlign: "center", fontSize: 10, color: "#444" }}>
-        Built by <a href="https://monsurate.com" style={{ color: "#555", textDecoration: "none" }}>Ryan Monsurate</a> &middot; Data from BC Budget 2026, CIHI, Fraser Institute
+      <div style={{ padding: "16px 28px", borderTop: "1px solid rgba(255,255,255,0.04)", textAlign: "center", fontSize: 11, color: "#3a3e48", letterSpacing: "0.02em" }}>
+        Built by <a href="https://monsurate.com" style={{ color: "#5a5e6a", textDecoration: "none", fontWeight: 500, borderBottom: "1px solid rgba(255,255,255,0.06)" }} onMouseEnter={e => e.target.style.color = "#8a8e9a"} onMouseLeave={e => e.target.style.color = "#5a5e6a"}>Ryan Monsurate</a> &middot; Data from BC Budget 2026, CIHI, Fraser Institute
       </div>
     </div>
   );
