@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BC Budget 2026 — Interactive Simulator</title>
+  <meta name="description" content="Interactive simulator for the BC 2026 provincial budget. Adjust tax brackets, spending, and explore the $13.3B deficit. See how admin overhead compares to 1975 levels." />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="BC Budget 2026 — Interactive Simulator" />
+  <meta property="og:description" content="Adjust tax brackets, spending, and explore the $13.3B deficit interactively. See how admin overhead grew from 8% in 1975 to 22% today." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://bcbudget2026.monsurate.com" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="BC Budget 2026 — Interactive Simulator" />
+  <meta name="twitter:description" content="Adjust tax brackets, spending, and explore the $13.3B deficit interactively." />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body, #root { width: 100%; height: 100%; }
+    body { background: #080a0f; }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 14px; height: 14px;
+      background: #fff; border-radius: 50%; cursor: pointer;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 14px; height: 14px; background: #fff;
+      border-radius: 50%; cursor: pointer; border: none;
+    }
+    * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.12) transparent; }
+    input[type="number"] {
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+      color: #fff; border-radius: 4px; padding: 4px 6px; font-size: 12px;
+      font-weight: 600; width: 64px; text-align: center; outline: none;
+      font-variant-numeric: tabular-nums;
+    }
+    input[type="number"]:focus { border-color: rgba(52,152,219,0.5); }
+  </style>
+
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+const { useState, useCallback, useMemo } = React;
+
+// ═══════════════════════════════════════════════════════════════
+// DATA: Tax Brackets (editable rates)
+// ═══════════════════════════════════════════════════════════════
+const DEFAULT_BRACKETS = [
+  { id: "b1", range: "Up to $47,937", min: 0, max: 47937, oldRate: 5.06, rate: 5.60, population: 1680000, label: "1st — Low Income" },
+  { id: "b2", range: "$47,937 – $95,875", min: 47937, max: 95875, oldRate: 7.70, rate: 7.70, population: 920000, label: "2nd — Lower-Mid" },
+  { id: "b3", range: "$95,875 – $110,076", min: 95875, max: 110076, oldRate: 10.50, rate: 10.50, population: 280000, label: "3rd — Mid" },
+  { id: "b4", range: "$110,076 – $133,664", min: 110076, max: 133664, oldRate: 12.29, rate: 12.29, population: 220000, label: "4th — Upper-Mid" },
+  { id: "b5", range: "$133,664 – $181,232", min: 133664, max: 181232, oldRate: 14.70, rate: 14.70, population: 180000, label: "5th — High" },
+  { id: "b6", range: "$181,232 – $252,752", min: 181232, max: 252752, oldRate: 16.80, rate: 16.80, population: 95000, label: "6th — Very High" },
+  { id: "b7", range: "Over $252,752", min: 252752, max: Infinity, oldRate: 20.50, rate: 20.50, population: 75000, label: "7th — Top" },
+];
+
+const DEFAULT_CORP_RATE = 12.0;
+const BASELINE_CORP_REVENUE = 5.2;
+
+// ═══════════════════════════════════════════════════════════════
+// DATA: Granular Revenue
+// ═══════════════════════════════════════════════════════════════
+const REVENUE_ITEMS = [
+  { id: "pit", name: "Personal Income Tax", baseline: 15.0, color: "#e74c3c", cat: "tax" },
+  { id: "cit", name: "Corporate Income Tax", baseline: 5.2, color: "#e67e22", cat: "tax" },
+  { id: "pst", name: "Provincial Sales Tax", baseline: 10.2, color: "#f1c40f", cat: "tax" },
+  { id: "ptt", name: "Property Transfer Tax", baseline: 2.4, color: "#2ecc71", cat: "tax" },
+  { id: "schooltax", name: "Property & School Tax", baseline: 3.2, color: "#1abc9c", cat: "tax" },
+  { id: "spectax", name: "Speculation & Vacancy Tax", baseline: 0.3, color: "#16a085", cat: "tax" },
+  { id: "natgas", name: "Natural Gas Royalties", baseline: 2.8, color: "#3498db", cat: "resource" },
+  { id: "forest", name: "Forestry Revenue", baseline: 0.6, color: "#27ae60", cat: "resource" },
+  { id: "mining", name: "Mining & Minerals", baseline: 0.9, color: "#2980b9", cat: "resource" },
+  { id: "federal", name: "Federal Health Transfer", baseline: 7.2, color: "#9b59b6", cat: "transfer" },
+  { id: "fedother", name: "Federal Other Transfers", baseline: 6.6, color: "#8e44ad", cat: "transfer" },
+  { id: "hydro", name: "BC Hydro Net Income", baseline: 2.8, color: "#6c5ce7", cat: "crown" },
+  { id: "icbc", name: "ICBC Net Income", baseline: 2.0, color: "#a29bfe", cat: "crown" },
+  { id: "ldb", name: "Liquor Distribution", baseline: 1.4, color: "#fd79a8", cat: "crown" },
+  { id: "fees", name: "Fees, Licenses & Fines", baseline: 3.6, color: "#636e72", cat: "other" },
+  { id: "tobacco", name: "Tobacco Settlement/Tax", baseline: 4.2, color: "#b2bec3", cat: "other" },
+  { id: "invest", name: "Investment Income & Other", baseline: 17.4, color: "#7f8c8d", cat: "other" },
+];
+
+// ═══════════════════════════════════════════════════════════════
+// DATA: Granular Expenses with Admin/Frontline splits
+// ═══════════════════════════════════════════════════════════════
+const EXPENSE_ITEMS = [
+  // HEALTHCARE ($32B total)
+  { id: "h_hospitals", name: "Hospitals & Acute Care", baseline: 12.8, color: "#e74c3c", sector: "health", adminPct: 18, desc: "Operating 17 major facilities. $11.1B capital over 3 years." },
+  { id: "h_physicians", name: "Physician Services (MSP)", baseline: 6.2, color: "#ff6b6b", sector: "health", adminPct: 8, desc: "Fee-for-service and salaried physician payments." },
+  { id: "h_pharma", name: "PharmaCare & Drugs", baseline: 2.4, color: "#ee5a24", sector: "health", adminPct: 12, desc: "Publicly-funded prescription drug coverage." },
+  { id: "h_mentalhealth", name: "Mental Health & Addictions", baseline: 1.8, color: "#d63031", sector: "health", adminPct: 15, desc: "$131M new for intensive treatment. Complex care housing." },
+  { id: "h_longterm", name: "Long-Term & Home Care", baseline: 3.2, color: "#c0392b", sector: "health", adminPct: 14, desc: "Residential care, assisted living, home support." },
+  { id: "h_admin", name: "Health Authority Admin & Corporate", baseline: 3.8, color: "#b71c1c", sector: "health", adminPct: 95, desc: "HA executive, corporate services, IT projects (CST: $799M)." },
+  { id: "h_other", name: "Other Health (Ambulance, Public Health)", baseline: 1.8, color: "#e57373", sector: "health", adminPct: 20, desc: "BC Emergency Health Services, public health programs." },
+
+  // K-12 EDUCATION ($9.2B)
+  { id: "e_teachers", name: "Teacher Salaries & Benefits", baseline: 4.8, color: "#e67e22", sector: "k12", adminPct: 0, desc: "37,000 FTE teachers. $167M Classroom Enhancement Fund." },
+  { id: "e_support", name: "Support Staff & Ed Assistants", baseline: 1.6, color: "#f39c12", sector: "k12", adminPct: 5, desc: "Educational assistants, custodians, library, counsellors (1,040 FTE)." },
+  { id: "e_admin", name: "School & District Administration", baseline: 1.2, color: "#d35400", sector: "k12", adminPct: 90, desc: "3,080 FTE admin (principals, supers). +339 since 2016-17." },
+  { id: "e_special", name: "Special Education & Inclusive", baseline: 0.9, color: "#e08d3c", sector: "k12", adminPct: 8, desc: "$838M targeted funding. Autism diagnoses up 1,400% since 2002." },
+  { id: "e_facilities", name: "School Operations & Maintenance", baseline: 0.7, color: "#f0b27a", sector: "k12", adminPct: 15, desc: "Building maintenance, HVAC, seismic compliance." },
+
+  // POST-SECONDARY ($6.8B)
+  { id: "ps_teaching", name: "University & College Instruction", baseline: 3.4, color: "#f1c40f", sector: "postsec", adminPct: 10, desc: "Faculty salaries, teaching programs across BC institutions." },
+  { id: "ps_trades", name: "Trades & Skills Training", baseline: 0.8, color: "#f7dc6f", sector: "postsec", adminPct: 12, desc: "$283M new funding to double apprenticeship seats by 2028-29." },
+  { id: "ps_research", name: "Research & Innovation", baseline: 0.6, color: "#fad7a0", sector: "postsec", adminPct: 20, desc: "University research grants, innovation programs." },
+  { id: "ps_admin", name: "Post-Secondary Administration", baseline: 1.2, color: "#d4ac0d", sector: "postsec", adminPct: 92, desc: "University admin, executive compensation, corporate services." },
+  { id: "ps_studentaid", name: "Student Aid & Grants", baseline: 0.8, color: "#b7950b", sector: "postsec", adminPct: 10, desc: "BC Student Loans, grants, Indigenous education support." },
+
+  // SOCIAL ($5.8B)
+  { id: "s_disability", name: "Disability Assistance", baseline: 2.2, color: "#2ecc71", sector: "social", adminPct: 12, desc: "PWD benefits. New $6K/yr children & youth supplement from 2027." },
+  { id: "s_income", name: "Income Assistance", baseline: 1.4, color: "#27ae60", sector: "social", adminPct: 14, desc: "BC Employment & Assistance for employable individuals." },
+  { id: "s_bcfamily", name: "BC Family Benefit", baseline: 1.2, color: "#1abc9c", sector: "social", adminPct: 5, desc: "Income-tested family benefit. Tax-free monthly payments." },
+  { id: "s_admin", name: "Social Services Administration", baseline: 1.0, color: "#16a085", sector: "social", adminPct: 88, desc: "Ministry admin, case management overhead, IT systems." },
+
+  // CHILDREN & CHILD CARE ($3.8B)
+  { id: "cc_providers", name: "Child Care Provider Funding", baseline: 2.0, color: "#00b894", sector: "children", adminPct: 8, desc: "$10/day ChildCareBC. Only ~10% of spaces at $10/day." },
+  { id: "cc_creation", name: "New Space Creation", baseline: 0.6, color: "#00cec9", sector: "children", adminPct: 15, desc: "Building new child care spaces. 11,800 spaces onboarding." },
+  { id: "cc_family", name: "Family & Child Welfare", baseline: 0.8, color: "#0984e3", sector: "children", adminPct: 18, desc: "Child protection, foster care, family services." },
+  { id: "cc_admin", name: "Child Care System Admin", baseline: 0.4, color: "#74b9ff", sector: "children", adminPct: 90, desc: "Program oversight, licensing, provider enrollment." },
+
+  // HOUSING ($2.6B)
+  { id: "ho_rental", name: "Rental Supports & Subsidies", baseline: 0.9, color: "#a29bfe", sector: "housing", adminPct: 8, desc: "$150M/yr more for lower income families and seniors." },
+  { id: "ho_construction", name: "Social Housing Construction", baseline: 0.8, color: "#6c5ce7", sector: "housing", adminPct: 12, desc: "BC Housing new builds, modular housing, supportive housing." },
+  { id: "ho_homelessness", name: "Homelessness & Shelters", baseline: 0.5, color: "#5f27cd", sector: "housing", adminPct: 15, desc: "Emergency shelters, outreach, Housing First programs." },
+  { id: "ho_admin", name: "Housing Admin & BC Housing Corp", baseline: 0.4, color: "#341f97", sector: "housing", adminPct: 85, desc: "BC Housing corporate operations, policy, oversight." },
+
+  // PUBLIC SAFETY ($4.2B)
+  { id: "ps_police", name: "Policing & RCMP", baseline: 1.8, color: "#3498db", sector: "safety", adminPct: 20, desc: "Provincial policing, RCMP contracts, municipal support." },
+  { id: "ps_courts", name: "Courts & Justice", baseline: 0.8, color: "#2980b9", sector: "safety", adminPct: 25, desc: "Provincial courts, Legal Aid, prosecution services." },
+  { id: "ps_corrections", name: "Corrections", baseline: 0.6, color: "#1565c0", sector: "safety", adminPct: 22, desc: "Provincial prisons, community corrections, probation." },
+  { id: "ps_fire", name: "Wildfire & Emergency Mgmt", baseline: 0.6, color: "#0d47a1", sector: "safety", adminPct: 15, desc: "BC Wildfire Service, emergency management, flood mitigation." },
+  { id: "ps_jsadmin", name: "Justice System Admin", baseline: 0.4, color: "#1a237e", sector: "safety", adminPct: 90, desc: "Ministry admin, AG office, regulatory bodies." },
+
+  // TRANSPORTATION ($3.2B)
+  { id: "t_highways", name: "Highway Maintenance & Ops", baseline: 1.2, color: "#e91e63", sector: "transport", adminPct: 12, desc: "Road maintenance, snowplowing, bridge upkeep." },
+  { id: "t_transit", name: "Transit Operations & Expansion", baseline: 1.1, color: "#c2185b", sector: "transport", adminPct: 15, desc: "TransLink, BC Transit. Surrey-Langley SkyTrain." },
+  { id: "t_capital", name: "Transport Capital Projects", baseline: 0.6, color: "#880e4f", sector: "transport", adminPct: 18, desc: "Major project construction, bridge replacements." },
+  { id: "t_admin", name: "Transport Ministry Admin", baseline: 0.3, color: "#ad1457", sector: "transport", adminPct: 88, desc: "Ministry overhead, planning, policy, regulation." },
+
+  // ENVIRONMENT ($2.4B)
+  { id: "env_climate", name: "Climate Action & Clean Energy", baseline: 0.7, color: "#4caf50", sector: "environ", adminPct: 20, desc: "CleanBC programs, carbon reduction initiatives." },
+  { id: "env_forestry", name: "Forestry & Land Management", baseline: 0.6, color: "#388e3c", sector: "environ", adminPct: 18, desc: "$50M new for forestry stability. Permit streamlining." },
+  { id: "env_parks", name: "Parks & Conservation", baseline: 0.4, color: "#2e7d32", sector: "environ", adminPct: 12, desc: "BC Parks operations, wildlife management." },
+  { id: "env_admin", name: "Environment Ministry Admin", baseline: 0.3, color: "#1b5e20", sector: "environ", adminPct: 88, desc: "Ministry overhead, environmental assessment office." },
+  { id: "env_water", name: "Water & Waste Management", baseline: 0.4, color: "#66bb6a", sector: "environ", adminPct: 15, desc: "Water treatment, watershed protection, remediation." },
+
+  // FIXED / NON-DISCRETIONARY
+  { id: "debt", name: "Debt Servicing (Interest)", baseline: 6.5, color: "#95a5a6", sector: "fixed", adminPct: 0, desc: "Interest on $183B debt. 6.2\u00a2 per revenue dollar. Non-negotiable." },
+  { id: "contingency", name: "Contingencies", baseline: 5.0, color: "#7f8c8d", sector: "fixed", adminPct: 0, desc: "$5B buffer for emergencies, bargaining, trade uncertainty." },
+
+  // OTHER GOV
+  { id: "og_it", name: "Government IT & Digital", baseline: 1.8, color: "#bdc3c7", sector: "other", adminPct: 40, desc: "OCIO, digital services, major IT projects across government." },
+  { id: "og_exec", name: "Executive & Legislature", baseline: 0.5, color: "#aab", sector: "other", adminPct: 95, desc: "Premier's office, Legislature, cabinet operations." },
+  { id: "og_hr", name: "HR, Finance & Central Services", baseline: 1.4, color: "#95a5a6", sector: "other", adminPct: 90, desc: "PSA, corporate finance, procurement, shared services." },
+  { id: "og_indigenous", name: "Indigenous Relations", baseline: 0.8, color: "#78909c", sector: "other", adminPct: 25, desc: "Treaty negotiations, Indigenous service delivery." },
+  { id: "og_econ", name: "Economic Development", baseline: 0.6, color: "#607d8b", sector: "other", adminPct: 30, desc: "$400M BC Strategic Investments. Permitting acceleration." },
+  { id: "og_misc", name: "Other Ministries & Programs", baseline: 9.5, color: "#546e7a", sector: "other", adminPct: 30, desc: "Agriculture, tourism, labour, immigration, arts, misc." },
+];
+
+const SECTORS = [
+  { id: "health", name: "Healthcare", color: "#e74c3c", icon: "\u{1F3E5}" },
+  { id: "k12", name: "K-12 Education", color: "#e67e22", icon: "\u{1F393}" },
+  { id: "postsec", name: "Post-Secondary", color: "#f1c40f", icon: "\u{1F3DB}\uFE0F" },
+  { id: "social", name: "Social Services", color: "#2ecc71", icon: "\u{1F6E1}\uFE0F" },
+  { id: "children", name: "Children & Care", color: "#00b894", icon: "\u{1F476}" },
+  { id: "housing", name: "Housing", color: "#6c5ce7", icon: "\u{1F3E0}" },
+  { id: "safety", name: "Public Safety", color: "#3498db", icon: "\u2696\uFE0F" },
+  { id: "transport", name: "Transportation", color: "#e91e63", icon: "\u{1F68C}" },
+  { id: "environ", name: "Environment", color: "#4caf50", icon: "\u{1F332}" },
+  { id: "fixed", name: "Fixed Costs", color: "#95a5a6", icon: "\u{1F512}" },
+  { id: "other", name: "Other Government", color: "#7f8c8d", icon: "\u{1F3E2}" },
+];
+
+const ADMIN_HISTORY = [
+  { year: 1975, healthAdminPct: 8, eduAdminPct: 6, label: "1975 Baseline" },
+  { year: 1985, healthAdminPct: 10, eduAdminPct: 7, label: "" },
+  { year: 1995, healthAdminPct: 12, eduAdminPct: 9, label: "" },
+  { year: 2005, healthAdminPct: 14, eduAdminPct: 10, label: "" },
+  { year: 2010, healthAdminPct: 15, eduAdminPct: 11, label: "" },
+  { year: 2015, healthAdminPct: 16, eduAdminPct: 12, label: "" },
+  { year: 2020, healthAdminPct: 18, eduAdminPct: 14, label: "COVID spike" },
+  { year: 2024, healthAdminPct: 22, eduAdminPct: 16, label: "Current" },
+  { year: 2026, healthAdminPct: 23, eduAdminPct: 17, label: "Budget 2026 (proj)" },
+];
+
+// ═══════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════
+const f = (v) => Math.abs(v) >= 1 ? `$${v.toFixed(1)}B` : `$${(v * 1000).toFixed(0)}M`;
+
+function estimatePITRevenue(brackets) {
+  let total = 0;
+  brackets.forEach(b => {
+    const avgIncome = b.max === Infinity ? 400000 : (b.min + b.max) / 2;
+    const taxableInBracket = avgIncome - b.min;
+    total += (b.rate / 100) * taxableInBracket * b.population;
+  });
+  return total / 1e9;
+}
+
+const baselinePIT = estimatePITRevenue(DEFAULT_BRACKETS);
+
+// ═══════════════════════════════════════════════════════════════
+// COMPONENTS
+// ═══════════════════════════════════════════════════════════════
+function MiniSlider({ value, onChange, min, max, step, color, label, format }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+      {label && <span style={{ fontSize: 11, color: "#888", minWidth: 30, flexShrink: 0 }}>{label}</span>}
+      <input type="range" min={min} max={max} step={step} value={value} onChange={e => onChange(parseFloat(e.target.value))}
+        style={{ flex: 1, height: 4, appearance: "none", WebkitAppearance: "none", background: `linear-gradient(to right, ${color} 0%, ${color} ${((value - min) / (max - min)) * 100}%, rgba(255,255,255,0.1) ${((value - min) / (max - min)) * 100}%, rgba(255,255,255,0.1) 100%)`, borderRadius: 2, outline: "none", cursor: "pointer", minWidth: 40 }} />
+      <span style={{ fontSize: 12, fontWeight: 700, color: "#fff", fontVariantNumeric: "tabular-nums", minWidth: 42, textAlign: "right" }}>
+        {format ? format(value) : value.toFixed(2)}
+      </span>
+    </div>
+  );
+}
+
+function ExpenseSlider({ item, value, onChange }) {
+  const pct = ((value - item.baseline) / item.baseline) * 100;
+  const changed = Math.abs(pct) > 0.5;
+  const adminDollars = value * (item.adminPct / 100);
+  const frontlineDollars = value - adminDollars;
+  return (
+    <div style={{ padding: "8px 12px", marginBottom: 4, borderRadius: 6, background: changed ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.015)", border: `1px solid ${changed ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.03)"}` }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, flex: 1 }}>
+          <div style={{ width: 8, height: 8, borderRadius: 2, background: item.color, flexShrink: 0 }} />
+          <span style={{ fontSize: 12, fontWeight: 600, color: "#d0d0d0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.name}</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: "#fff", fontVariantNumeric: "tabular-nums" }}>{f(value)}</span>
+          {changed && <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: pct > 0 ? "rgba(231,76,60,0.2)" : "rgba(46,204,113,0.2)", color: pct > 0 ? "#e74c3c" : "#2ecc71" }}>{pct > 0 ? "+" : ""}{pct.toFixed(0)}%</span>}
+        </div>
+      </div>
+      <input type="range" min={0} max={item.baseline * 2.5} step={0.05} value={value} onChange={e => onChange(item.id, parseFloat(e.target.value))}
+        style={{ width: "100%", height: 4, appearance: "none", WebkitAppearance: "none", background: `linear-gradient(to right, ${item.color} 0%, ${item.color} ${(value / (item.baseline * 2.5)) * 100}%, rgba(255,255,255,0.08) ${(value / (item.baseline * 2.5)) * 100}%, rgba(255,255,255,0.08) 100%)`, borderRadius: 2, outline: "none", cursor: "pointer" }} />
+      {item.adminPct > 0 && (
+        <div style={{ display: "flex", gap: 2, marginTop: 3, height: 3, borderRadius: 2, overflow: "hidden" }}>
+          <div style={{ width: `${100 - item.adminPct}%`, background: "#2ecc71", opacity: 0.6 }} title={`Frontline: ${f(frontlineDollars)}`} />
+          <div style={{ width: `${item.adminPct}%`, background: "#e74c3c", opacity: 0.6 }} title={`Admin: ${f(adminDollars)}`} />
+        </div>
+      )}
+      <div style={{ fontSize: 10, color: "#666", marginTop: 2, display: "flex", justifyContent: "space-between" }}>
+        <span>{item.desc}</span>
+        {item.adminPct > 0 && <span style={{ flexShrink: 0, marginLeft: 8 }}>Admin: {item.adminPct}%</span>}
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ title, value, sub, color, small }) {
+  return (
+    <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: small ? "10px 12px" : "14px 16px", flex: "1 1 120px", minWidth: small ? 100 : 130 }}>
+      <div style={{ fontSize: 10, color: "#777", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 2 }}>{title}</div>
+      <div style={{ fontSize: small ? 18 : 22, fontWeight: 800, color, fontVariantNumeric: "tabular-nums" }}>{value}</div>
+      {sub && <div style={{ fontSize: 10, color: "#555", marginTop: 1 }}>{sub}</div>}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MAIN APP
+// ═══════════════════════════════════════════════════════════════
+function BCBudgetV2() {
+  const [brackets, setBrackets] = useState(DEFAULT_BRACKETS);
+  const [corpRate, setCorpRate] = useState(DEFAULT_CORP_RATE);
+  const [expenses, setExpenses] = useState(Object.fromEntries(EXPENSE_ITEMS.map(i => [i.id, i.baseline])));
+  const [revenues, setRevenues] = useState(Object.fromEntries(REVENUE_ITEMS.map(i => [i.id, i.baseline])));
+  const [tab, setTab] = useState("overview");
+  const [expandedSectors, setExpandedSectors] = useState(new Set(["health", "k12"]));
+
+  const updateBracketRate = useCallback((id, newRate) => {
+    setBrackets(prev => prev.map(b => b.id === id ? { ...b, rate: newRate } : b));
+  }, []);
+
+  const handleExpense = useCallback((id, val) => setExpenses(p => ({ ...p, [id]: val })), []);
+  const handleRevenue = useCallback((id, val) => setRevenues(p => ({ ...p, [id]: val })), []);
+
+  // PIT scales with bracket changes
+  const pitMultiplier = useMemo(() => estimatePITRevenue(brackets) / baselinePIT, [brackets]);
+  const corpMultiplier = corpRate / DEFAULT_CORP_RATE;
+
+  const effectiveRevenues = useMemo(() => ({
+    ...revenues,
+    pit: revenues.pit * pitMultiplier,
+    cit: revenues.cit * corpMultiplier,
+  }), [revenues, pitMultiplier, corpMultiplier]);
+
+  const totalRevenue = useMemo(() => Object.values(effectiveRevenues).reduce((a, b) => a + b, 0), [effectiveRevenues]);
+  const totalExpense = useMemo(() => Object.values(expenses).reduce((a, b) => a + b, 0), [expenses]);
+  const deficit = totalRevenue - totalExpense;
+  const baselineDeficit = -13.3;
+  const change = deficit - baselineDeficit;
+
+  const totalAdmin = useMemo(() => EXPENSE_ITEMS.reduce((sum, item) => sum + expenses[item.id] * (item.adminPct / 100), 0), [expenses]);
+  const totalFrontline = totalExpense - totalAdmin;
+
+  const sectorTotals = useMemo(() => {
+    const m = {};
+    SECTORS.forEach(s => { m[s.id] = { total: 0, admin: 0, frontline: 0, items: [] }; });
+    EXPENSE_ITEMS.forEach(item => {
+      const val = expenses[item.id];
+      const adm = val * (item.adminPct / 100);
+      if (m[item.sector]) {
+        m[item.sector].total += val;
+        m[item.sector].admin += adm;
+        m[item.sector].frontline += val - adm;
+        m[item.sector].items.push(item);
+      }
+    });
+    return m;
+  }, [expenses]);
+
+  const toggleSector = (id) => setExpandedSectors(prev => {
+    const n = new Set(prev);
+    n.has(id) ? n.delete(id) : n.add(id);
+    return n;
+  });
+
+  const applyPreset = (preset) => {
+    if (preset === "reset") {
+      setBrackets(DEFAULT_BRACKETS);
+      setCorpRate(DEFAULT_CORP_RATE);
+      setExpenses(Object.fromEntries(EXPENSE_ITEMS.map(i => [i.id, i.baseline])));
+      setRevenues(Object.fromEntries(REVENUE_ITEMS.map(i => [i.id, i.baseline])));
+    } else if (preset === "admin_1975") {
+      const newExp = { ...expenses };
+      EXPENSE_ITEMS.forEach(item => {
+        if (item.adminPct >= 80) newExp[item.id] = item.baseline * 0.3;
+        else if (item.adminPct >= 30) newExp[item.id] = item.baseline * 0.85;
+      });
+      setExpenses(newExp);
+    } else if (preset === "admin_ai") {
+      const newExp = { ...expenses };
+      EXPENSE_ITEMS.forEach(item => {
+        if (item.adminPct >= 85) newExp[item.id] = item.baseline * 0.15;
+        else if (item.adminPct >= 40) newExp[item.id] = item.baseline * 0.6;
+        else if (item.adminPct >= 20) newExp[item.id] = item.baseline * 0.9;
+      });
+      setExpenses(newExp);
+    } else if (preset === "fair_tax") {
+      setBrackets(prev => prev.map(b => {
+        if (b.id === "b1") return { ...b, rate: 5.06 };
+        if (b.id === "b5") return { ...b, rate: 15.70 };
+        if (b.id === "b6") return { ...b, rate: 18.80 };
+        if (b.id === "b7") return { ...b, rate: 23.50 };
+        return b;
+      }));
+      setCorpRate(14.0);
+    }
+  };
+
+  const tabs = [
+    { id: "overview", label: "\u{1F4CA} Overview" },
+    { id: "taxes", label: "\u{1F4B0} Tax Brackets" },
+    { id: "spending", label: "\u{1F3DB}\uFE0F Spending" },
+    { id: "admin", label: "\u{1F52C} Admin Analysis" },
+  ];
+
+  return (
+    <div style={{ fontFamily: "'IBM Plex Sans', -apple-system, sans-serif", background: "linear-gradient(150deg, #080a0f 0%, #0f1319 40%, #0a0e14 100%)", color: "#e0e0e0", minHeight: "100vh" }}>
+
+      {/* HEADER */}
+      <div style={{ padding: "16px 20px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)", background: "rgba(0,0,0,0.3)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8 }}>
+          <div>
+            <div style={{ fontSize: 9, letterSpacing: 2, color: "#555", textTransform: "uppercase" }}>Interactive Scenario Planner</div>
+            <h1 style={{ fontSize: 20, fontWeight: 800, margin: "2px 0", background: "linear-gradient(135deg, #fff 0%, #99a)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+              BC Budget 2026 &mdash; Deep Dive
+            </h1>
+          </div>
+          <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+            {[["reset", "\u21BA Reset"], ["admin_1975", "\u{1F4C9} 1975 Admin"], ["admin_ai", "\u{1F916} AI Admin"], ["fair_tax", "\u2696\uFE0F Fair Tax"]].map(([k, l]) => (
+              <button key={k} onClick={() => applyPreset(k)} style={{ padding: "5px 10px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "#aaa", fontSize: 11, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>{l}</button>
+            ))}
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+          <StatCard title="Revenue" value={f(totalRevenue)} sub={`PIT: ${f(effectiveRevenues.pit)} | CIT: ${f(effectiveRevenues.cit)}`} color="#2ecc71" />
+          <StatCard title="Expenses" value={f(totalExpense)} sub={`Admin: ${f(totalAdmin)} (${(totalAdmin/totalExpense*100).toFixed(0)}%)`} color="#e74c3c" />
+          <StatCard title={deficit >= 0 ? "Surplus" : "Deficit"} value={f(Math.abs(deficit))} sub={change > 0.1 ? `${f(change)} better` : change < -0.1 ? `${f(Math.abs(change))} worse` : "At baseline"} color={deficit >= 0 ? "#2ecc71" : "#e74c3c"} />
+          <StatCard title="Frontline $" value={`${(totalFrontline/totalExpense*100).toFixed(0)}%`} sub={f(totalFrontline)} color="#3498db" />
+          <StatCard title="Admin $" value={`${(totalAdmin/totalExpense*100).toFixed(0)}%`} sub={f(totalAdmin)} color="#e67e22" />
+        </div>
+      </div>
+
+      {/* TABS */}
+      <div style={{ display: "flex", borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "0 20px", background: "rgba(0,0,0,0.15)", overflowX: "auto" }}>
+        {tabs.map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)} style={{ padding: "10px 16px", background: "none", border: "none", borderBottom: tab === t.id ? "2px solid #3498db" : "2px solid transparent", color: tab === t.id ? "#fff" : "#666", fontSize: 12, fontWeight: tab === t.id ? 700 : 500, cursor: "pointer", whiteSpace: "nowrap" }}>{t.label}</button>
+        ))}
+      </div>
+
+      {/* CONTENT */}
+      <div style={{ padding: "16px 20px", maxHeight: "calc(100vh - 240px)", overflowY: "auto" }}>
+
+        {/* OVERVIEW TAB */}
+        {tab === "overview" && (
+          <div>
+            {/* Sector bar */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                <span style={{ fontSize: 11, color: "#888", fontWeight: 600 }}>EXPENSES BY SECTOR</span>
+                <span style={{ fontSize: 11, color: "#fff", fontWeight: 700 }}>{f(totalExpense)}</span>
+              </div>
+              <div style={{ display: "flex", height: 24, borderRadius: 5, overflow: "hidden", gap: 1 }}>
+                {SECTORS.map(s => {
+                  const pct = (sectorTotals[s.id].total / totalExpense) * 100;
+                  if (pct < 0.3) return null;
+                  return <div key={s.id} title={`${s.name}: ${f(sectorTotals[s.id].total)} (${pct.toFixed(1)}%)`} style={{ width: `${pct}%`, background: s.color, opacity: 0.8, cursor: "pointer" }} />;
+                })}
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 12px", marginTop: 6 }}>
+                {SECTORS.map(s => {
+                  const t = sectorTotals[s.id].total;
+                  if (t < 0.1) return null;
+                  return <span key={s.id} style={{ fontSize: 10, color: "#888" }}><span style={{ color: s.color }}>{"\u25CF"}</span> {s.name}: {f(t)}</span>;
+                })}
+              </div>
+            </div>
+
+            {/* Admin vs Frontline */}
+            <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
+              <div style={{ flex: "1 1 200px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: 14 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#ccc", marginBottom: 8 }}>{"\u{1F4B0}"} Admin vs Frontline Split</div>
+                <div style={{ display: "flex", height: 20, borderRadius: 4, overflow: "hidden", marginBottom: 6 }}>
+                  <div style={{ width: `${(totalFrontline/totalExpense)*100}%`, background: "#2ecc71", transition: "width 0.3s" }} />
+                  <div style={{ width: `${(totalAdmin/totalExpense)*100}%`, background: "#e74c3c", transition: "width 0.3s" }} />
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
+                  <span style={{ color: "#2ecc71" }}>{"\u{1F7E2}"} Frontline: {f(totalFrontline)} ({(totalFrontline/totalExpense*100).toFixed(1)}%)</span>
+                  <span style={{ color: "#e74c3c" }}>{"\u{1F534}"} Admin: {f(totalAdmin)} ({(totalAdmin/totalExpense*100).toFixed(1)}%)</span>
+                </div>
+              </div>
+              <div style={{ flex: "1 1 200px", background: deficit >= 0 ? "rgba(46,204,113,0.06)" : "rgba(231,76,60,0.06)", border: `1px solid ${deficit >= 0 ? "rgba(46,204,113,0.15)" : "rgba(231,76,60,0.15)"}`, borderRadius: 10, padding: 14 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#ccc", marginBottom: 4 }}>{deficit >= 0 ? "\u2705 Budget Surplus" : "\u{1F534} Budget Deficit"}</div>
+                <div style={{ fontSize: 28, fontWeight: 800, color: deficit >= 0 ? "#2ecc71" : "#e74c3c" }}>{f(Math.abs(deficit))}</div>
+                <div style={{ fontSize: 11, color: "#666" }}>Baseline: $13.3B deficit {change !== 0 && (<span style={{ color: change > 0 ? "#2ecc71" : "#e74c3c", fontWeight: 700 }}> {"\u2192"} {change > 0 ? "\u25B2" : "\u25BC"} {f(Math.abs(change))}</span>)}</div>
+              </div>
+            </div>
+
+            {/* Sector summaries */}
+            {SECTORS.map(sector => {
+              const st = sectorTotals[sector.id];
+              if (st.total < 0.05) return null;
+              const adminPct = st.total > 0 ? (st.admin / st.total * 100) : 0;
+              return (
+                <div key={sector.id} style={{ marginBottom: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 8, overflow: "hidden" }}>
+                  <div onClick={() => toggleSector(sector.id)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", cursor: "pointer" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span>{sector.icon}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "#ddd" }}>{sector.name}</span>
+                      <span style={{ fontSize: 11, color: "#888" }}>{f(st.total)}</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      {adminPct > 0 && <span style={{ fontSize: 10, color: adminPct > 25 ? "#e74c3c" : "#888" }}>Admin: {adminPct.toFixed(0)}%</span>}
+                      <span style={{ color: "#555", fontSize: 12 }}>{expandedSectors.has(sector.id) ? "\u25BE" : "\u25B8"}</span>
+                    </div>
+                  </div>
+                  {expandedSectors.has(sector.id) && (
+                    <div style={{ padding: "0 10px 10px" }}>
+                      {st.items.map(item => (
+                        <ExpenseSlider key={item.id} item={item} value={expenses[item.id]} onChange={handleExpense} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* TAX BRACKETS TAB */}
+        {tab === "taxes" && (
+          <div>
+            <div style={{ fontSize: 12, color: "#888", marginBottom: 16, lineHeight: 1.5 }}>
+              Edit each bracket's tax rate to model alternative approaches. The PIT revenue estimate updates in real-time.
+              The government raised only the lowest bracket from 5.06% {"\u2192"} 5.60% while leaving all others untouched.
+              Try the "{"\u2696\uFE0F"} Fair Tax" preset to see what happens when higher earners contribute more instead.
+            </div>
+
+            {/* Corporate Rate */}
+            <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: 14, marginBottom: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "#e67e22" }}>{"\u{1F3E2}"} Corporate Income Tax Rate</span>
+                <span style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>{corpRate.toFixed(1)}%</span>
+              </div>
+              <MiniSlider value={corpRate} onChange={setCorpRate} min={8} max={20} step={0.5} color="#e67e22" format={v => `${v.toFixed(1)}%`} />
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#666", marginTop: 4 }}>
+                <span>Baseline: 12.0% (general rate)</span>
+                <span>Est. Revenue: {f(effectiveRevenues.cit)} {corpRate !== DEFAULT_CORP_RATE && <span style={{ color: corpMultiplier > 1 ? "#2ecc71" : "#e74c3c" }}>({corpMultiplier > 1 ? "+" : ""}{((corpMultiplier - 1) * 100).toFixed(0)}%)</span>}</span>
+              </div>
+            </div>
+
+            {/* Personal Brackets */}
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "#e74c3c" }}>{"\u{1F464}"} Personal Income Tax Brackets</span>
+                <span style={{ fontSize: 12, color: "#888" }}>Est. PIT Revenue: <span style={{ color: "#fff", fontWeight: 700 }}>{f(effectiveRevenues.pit)}</span></span>
+              </div>
+
+              {brackets.map((b) => {
+                const changed = Math.abs(b.rate - b.oldRate) > 0.01;
+                const isGovChanged = Math.abs(DEFAULT_BRACKETS.find(d => d.id === b.id).rate - b.oldRate) > 0.01;
+                return (
+                  <div key={b.id} style={{
+                    padding: "10px 12px", marginBottom: 6, borderRadius: 8,
+                    background: changed ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.015)",
+                    border: `1px solid ${isGovChanged && b.rate === DEFAULT_BRACKETS.find(d => d.id === b.id).rate ? "rgba(231,76,60,0.3)" : changed ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.04)"}`,
+                  }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                      <div>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "#d0d0d0" }}>{b.label}</span>
+                        <span style={{ fontSize: 11, color: "#666", marginLeft: 8 }}>{b.range}</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 10, color: "#666" }}>Pre-2026: {b.oldRate}%</span>
+                        <span style={{ fontSize: 10, color: "#444" }}>{"\u2192"}</span>
+                        <input type="number" value={b.rate} step={0.1} min={0} max={40}
+                          onChange={e => updateBracketRate(b.id, parseFloat(e.target.value) || 0)}
+                          style={{ width: 58 }} />
+                        <span style={{ fontSize: 11, color: "#888" }}>%</span>
+                      </div>
+                    </div>
+                    <MiniSlider value={b.rate} onChange={(v) => updateBracketRate(b.id, v)} min={0} max={30} step={0.1} color={changed ? "#e74c3c" : "#3498db"} format={v => `${v.toFixed(2)}%`} />
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#555", marginTop: 2 }}>
+                      <span>~{(b.population / 1000).toFixed(0)}K taxpayers in bracket</span>
+                      {changed && <span style={{ color: b.rate > b.oldRate ? "#e74c3c" : "#2ecc71", fontWeight: 600 }}>
+                        {b.rate > b.oldRate ? "\u2191" : "\u2193"} {Math.abs(b.rate - b.oldRate).toFixed(2)}pp change
+                      </span>}
+                    </div>
+                  </div>
+                );
+              })}
+
+              <div style={{ marginTop: 12, padding: "10px 12px", background: "rgba(231,76,60,0.06)", border: "1px solid rgba(231,76,60,0.15)", borderRadius: 8, fontSize: 11, color: "#bbb", lineHeight: 1.5 }}>
+                <strong style={{ color: "#e74c3c" }}>The fairness problem:</strong> The 2026 budget raised only the 1st bracket (affecting ~1.68M low/middle income taxpayers)
+                by 0.54pp. The top bracket (20.5% on $252K+, ~75K taxpayers) was untouched. The tax reduction credit
+                only offsets this for those under ~$45K &mdash; leaving the $45K&ndash;$95K middle class bearing the full weight.
+                Additionally, bracket indexing is frozen 2027&ndash;2030, meaning inflation will silently push everyone into higher
+                effective rates. This is a regressive approach that shifts the burden downward.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* SPENDING TAB */}
+        {tab === "spending" && (
+          <div>
+            <div style={{ fontSize: 12, color: "#888", marginBottom: 12, lineHeight: 1.5 }}>
+              Granular spending controls by sector. The green/red bar under each item shows the frontline vs admin split.
+              Click sector headers to expand. Debt servicing ($6.5B) is non-discretionary.
+            </div>
+            {/* Revenue mini-controls */}
+            <details style={{ marginBottom: 12 }}>
+              <summary style={{ fontSize: 12, fontWeight: 700, color: "#aaa", cursor: "pointer", marginBottom: 8 }}>{"\u{1F4C8}"} Revenue Adjustments (click to expand)</summary>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 4 }}>
+                {REVENUE_ITEMS.filter(i => i.id !== "pit" && i.id !== "cit").map(item => (
+                  <div key={item.id} style={{ padding: "6px 10px", background: "rgba(255,255,255,0.02)", borderRadius: 6, border: "1px solid rgba(255,255,255,0.04)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 2 }}>
+                      <span style={{ color: "#aaa" }}><span style={{ color: item.color }}>{"\u25CF"}</span> {item.name}</span>
+                      <span style={{ color: "#fff", fontWeight: 600 }}>{f(revenues[item.id])}</span>
+                    </div>
+                    <input type="range" min={0} max={item.baseline * 2} step={0.1} value={revenues[item.id]} onChange={e => handleRevenue(item.id, parseFloat(e.target.value))}
+                      style={{ width: "100%", height: 3, appearance: "none", WebkitAppearance: "none", background: `linear-gradient(to right, ${item.color} 0%, ${item.color} ${(revenues[item.id] / (item.baseline * 2)) * 100}%, rgba(255,255,255,0.06) ${(revenues[item.id] / (item.baseline * 2)) * 100}%, rgba(255,255,255,0.06) 100%)`, borderRadius: 2, outline: "none", cursor: "pointer" }} />
+                  </div>
+                ))}
+              </div>
+            </details>
+
+            {SECTORS.map(sector => {
+              const st = sectorTotals[sector.id];
+              if (st.total < 0.05) return null;
+              const isOpen = expandedSectors.has(sector.id);
+              return (
+                <div key={sector.id} style={{ marginBottom: 6, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 8 }}>
+                  <div onClick={() => toggleSector(sector.id)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", cursor: "pointer" }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "#ddd" }}>{sector.icon} {sector.name} &mdash; {f(st.total)}</span>
+                    <span style={{ color: "#555" }}>{isOpen ? "\u25BE" : "\u25B8"}</span>
+                  </div>
+                  {isOpen && (
+                    <div style={{ padding: "0 8px 8px" }}>
+                      {st.items.map(item => <ExpenseSlider key={item.id} item={item} value={expenses[item.id]} onChange={handleExpense} />)}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ADMIN ANALYSIS TAB */}
+        {tab === "admin" && (
+          <div>
+            <div style={{ fontSize: 12, color: "#888", marginBottom: 16, lineHeight: 1.6 }}>
+              Administrative overhead has grown dramatically over the past 50 years while frontline service delivery has stagnated.
+              BC health authorities have seen corporate expenditures outpace healthcare delivery investments. Education admin
+              (3,080 FTE) grew by 339 positions since 2016-17 even as overall enrollment shifted. Canada spends ~17% of healthcare
+              dollars on administration vs ~8% in the 1970s. With AI automating scheduling, billing, compliance, reporting, HR, and
+              management tasks, we can radically reduce this overhead.
+            </div>
+
+            {/* Historical admin trend */}
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: 16, marginBottom: 16 }}>
+              <h3 style={{ fontSize: 13, fontWeight: 700, color: "#ddd", marginBottom: 12 }}>{"\u{1F4C8}"} Admin Overhead Growth: 1975 {"\u2192"} 2026</h3>
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 140, padding: "0 4px" }}>
+                {ADMIN_HISTORY.map((h, i) => (
+                  <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+                    <div style={{ display: "flex", gap: 1, alignItems: "flex-end", height: 110, width: "100%" }}>
+                      <div style={{ flex: 1, background: "#e74c3c", opacity: 0.7, borderRadius: "3px 3px 0 0", height: `${(h.healthAdminPct / 25) * 100}%`, transition: "height 0.3s" }} title={`Health admin: ${h.healthAdminPct}%`} />
+                      <div style={{ flex: 1, background: "#e67e22", opacity: 0.7, borderRadius: "3px 3px 0 0", height: `${(h.eduAdminPct / 25) * 100}%`, transition: "height 0.3s" }} title={`Edu admin: ${h.eduAdminPct}%`} />
+                    </div>
+                    <span style={{ fontSize: 9, color: "#666", whiteSpace: "nowrap" }}>{h.year}</span>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 16, justifyContent: "center", marginTop: 8 }}>
+                <span style={{ fontSize: 10, color: "#e74c3c" }}>{"\u{1F534}"} Health Admin %</span>
+                <span style={{ fontSize: 10, color: "#e67e22" }}>{"\u{1F7E0}"} Education Admin %</span>
+              </div>
+            </div>
+
+            {/* Per-sector admin breakdown */}
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: 16, marginBottom: 16 }}>
+              <h3 style={{ fontSize: 13, fontWeight: 700, color: "#ddd", marginBottom: 12 }}>{"\u{1F3DB}\uFE0F"} Admin Dollars by Sector (Your Scenario)</h3>
+              {SECTORS.filter(s => sectorTotals[s.id].admin > 0.05).map(s => {
+                const st = sectorTotals[s.id];
+                const adminPct = st.total > 0 ? (st.admin / st.total * 100) : 0;
+                return (
+                  <div key={s.id} style={{ marginBottom: 8 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 2 }}>
+                      <span style={{ color: "#bbb" }}>{s.icon} {s.name}</span>
+                      <span style={{ color: "#888" }}>{f(st.admin)} admin / {f(st.total)} total ({adminPct.toFixed(0)}%)</span>
+                    </div>
+                    <div style={{ display: "flex", height: 12, borderRadius: 3, overflow: "hidden", gap: 1 }}>
+                      <div style={{ width: `${100 - adminPct}%`, background: "#2ecc71", opacity: 0.6 }} />
+                      <div style={{ width: `${adminPct}%`, background: "#e74c3c", opacity: 0.6 }} />
+                    </div>
+                  </div>
+                );
+              })}
+              <div style={{ marginTop: 12, padding: "10px 12px", background: "rgba(52,152,219,0.08)", border: "1px solid rgba(52,152,219,0.15)", borderRadius: 8, fontSize: 11, color: "#bbb", lineHeight: 1.5 }}>
+                <strong style={{ color: "#3498db" }}>Total admin spend: {f(totalAdmin)}</strong> ({(totalAdmin/totalExpense*100).toFixed(1)}% of all spending).
+                Cutting admin to 1975 levels (~8% of health, ~6% of education) would save an estimated
+                <strong style={{ color: "#2ecc71" }}> {f(totalAdmin * 0.5)}</strong> &mdash; roughly {((totalAdmin * 0.5 / 13.3) * 100).toFixed(0)}% of the current deficit.
+              </div>
+            </div>
+
+            {/* Key admin items */}
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: 16, marginBottom: 16 }}>
+              <h3 style={{ fontSize: 13, fontWeight: 700, color: "#ddd", marginBottom: 8 }}>{"\u{1F3AF}"} Largest Admin-Heavy Line Items</h3>
+              {EXPENSE_ITEMS.filter(i => i.adminPct >= 40).sort((a, b) => expenses[b.id] * b.adminPct - expenses[a.id] * a.adminPct).map(item => {
+                const val = expenses[item.id];
+                const adminDollars = val * (item.adminPct / 100);
+                const baselineAdmin = item.baseline * (item.adminPct / 100);
+                const saved = baselineAdmin - adminDollars;
+                return (
+                  <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,0.03)", fontSize: 11 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 0 }}>
+                      <div style={{ width: 6, height: 6, borderRadius: 1, background: item.color, flexShrink: 0 }} />
+                      <span style={{ color: "#bbb", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.name}</span>
+                    </div>
+                    <div style={{ display: "flex", gap: 12, alignItems: "center", flexShrink: 0 }}>
+                      <span style={{ color: "#e74c3c" }}>{item.adminPct}% admin</span>
+                      <span style={{ color: "#fff", fontWeight: 600 }}>{f(adminDollars)}</span>
+                      {saved > 0.05 && <span style={{ color: "#2ecc71", fontWeight: 600 }}>saved {f(saved)}</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* The AI argument */}
+            <div style={{ background: "rgba(46,204,113,0.06)", border: "1px solid rgba(46,204,113,0.15)", borderRadius: 10, padding: 16, marginBottom: 16 }}>
+              <h3 style={{ fontSize: 13, fontWeight: 700, color: "#2ecc71", marginBottom: 8 }}>{"\u{1F916}"} The AI Administration Argument</h3>
+              <div style={{ fontSize: 12, color: "#bbb", lineHeight: 1.7 }}>
+                <p style={{ margin: "0 0 8px" }}>
+                  Modern AI can automate the majority of administrative tasks that have driven overhead growth since the 1970s:
+                </p>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 8, marginBottom: 10 }}>
+                  {[
+                    ["Scheduling & Coordination", "AI scheduling systems can replace entire admin teams managing appointments, shifts, and resource allocation."],
+                    ["Billing & Claims Processing", "Automated processing of health claims, school funding formulas, and grant management."],
+                    ["Compliance & Reporting", "AI-generated compliance reports, audits, and regulatory filings that currently require floors of analysts."],
+                    ["HR & People Management", "Automated payroll, benefits admin, performance tracking. Middle management layers become redundant."],
+                    ["Procurement & Contracts", "AI-driven procurement eliminates the need for large purchasing departments and contract managers."],
+                    ["Data & Decision Support", "Real-time dashboards replace monthly reports from teams of data analysts and business intelligence staff."],
+                  ].map(([title, desc], i) => (
+                    <div key={i} style={{ padding: "8px 10px", background: "rgba(255,255,255,0.03)", borderRadius: 6, border: "1px solid rgba(255,255,255,0.05)" }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: "#2ecc71", marginBottom: 2 }}>{"\u2713"} {title}</div>
+                      <div style={{ fontSize: 10, color: "#888" }}>{desc}</div>
+                    </div>
+                  ))}
+                </div>
+                <p style={{ margin: "0 0 8px" }}>
+                  <strong>BC Education:</strong> 3,080 FTE administrators manage 37,000 teachers &mdash; that's 1 admin per 12 teachers.
+                  In 1975 it was closer to 1 per 25. Going back to 1975 ratios would eliminate ~1,500 admin positions.
+                  With AI? 1 per 50+ is achievable, freeing ~2,400 positions worth of salary for frontline teaching.
+                </p>
+                <p style={{ margin: "0 0 8px" }}>
+                  <strong>BC Health:</strong> Corporate expenditures have increased in every BC health authority, outpacing healthcare delivery
+                  investments. The CST IT project alone ballooned to $799M (Ontario did similar for half the cost). Fraser Health
+                  overran its budget by $1.1B (20%) in a single year. AI can't fix all of this, but automating the administrative
+                  machinery that creates and manages this complexity is a multi-billion dollar opportunity.
+                </p>
+                <p style={{ margin: 0, fontWeight: 600, color: "#2ecc71" }}>
+                  Try the "{"\u{1F916}"} AI Admin" preset above to see the fiscal impact of an aggressive admin reduction scenario.
+                </p>
+              </div>
+            </div>
+
+            <div style={{ fontSize: 11, color: "#666", lineHeight: 1.5, padding: 12, background: "rgba(255,255,255,0.02)", borderRadius: 8 }}>
+              <strong>Data sources:</strong> BC Budget 2026 fiscal plan, CIHI National Health Expenditure Trends 2024,
+              BC Education by the Numbers (Dec 2025: 37,000 FTE teachers, 3,080 FTE administrators),
+              Fraser Institute Education Spending in Public Schools 2025, PwC/MNP/RBC/TD Economics budget analyses.
+              Admin percentages are estimates based on CIHI data showing Canada at ~17% health admin nationally,
+              and education administration research. Historical trend data derived from CIHI longitudinal series.
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div style={{ padding: "12px 20px", borderTop: "1px solid rgba(255,255,255,0.05)", textAlign: "center", fontSize: 10, color: "#444" }}>
+        Built by <a href="https://monsurate.com" style={{ color: "#555", textDecoration: "none" }}>Ryan Monsurate</a> &middot; Data from BC Budget 2026, CIHI, Fraser Institute
+      </div>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<BCBudgetV2 />);
+  </script>
+</body>
+</html>
