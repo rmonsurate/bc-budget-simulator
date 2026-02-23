@@ -358,6 +358,29 @@ function BCBudgetV2() {
         return b;
       }));
       setCorpRate(14.0);
+    } else if (preset === "my_budget") {
+      // Cut admin, lower all PIT brackets, corp tax to 15%, PST to 5%
+      const newExp = { ...expenses };
+      EXPENSE_ITEMS.forEach(item => {
+        if (item.adminPct >= 85) newExp[item.id] = item.baseline * 0.15;
+        else if (item.adminPct >= 40) newExp[item.id] = item.baseline * 0.6;
+        else if (item.adminPct >= 20) newExp[item.id] = item.baseline * 0.9;
+      });
+      setExpenses(newExp);
+      // Lower all personal income tax brackets
+      setBrackets(prev => prev.map(b => {
+        if (b.id === "b1") return { ...b, rate: 4.50 };
+        if (b.id === "b2") return { ...b, rate: 7.00 };
+        if (b.id === "b3") return { ...b, rate: 9.50 };
+        if (b.id === "b4") return { ...b, rate: 11.29 };
+        if (b.id === "b5") return { ...b, rate: 13.70 };
+        if (b.id === "b6") return { ...b, rate: 15.80 };
+        if (b.id === "b7") return { ...b, rate: 19.50 };
+        return b;
+      }));
+      setCorpRate(15.0);
+      // Drop PST to 5%
+      setRevenues(prev => ({ ...prev, pst: 10.2 * (5.0 / 7.0) }));
     }
   };
 
@@ -381,7 +404,7 @@ function BCBudgetV2() {
             </h1>
           </div>
           <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-            {[["reset", "\u21BA Reset"], ["admin_1975", "\u{1F4C9} 1975 Admin"], ["admin_ai", "\u{1F916} AI Admin"], ["fair_tax", "\u2696\uFE0F Fair Tax"]].map(([k, l]) => (
+            {[["reset", "\u21BA Reset"], ["my_budget", "\u{1F4A1} My Budget"], ["admin_1975", "\u{1F4C9} 1975 Admin"], ["admin_ai", "\u{1F916} AI Admin"], ["fair_tax", "\u2696\uFE0F Fair Tax"]].map(([k, l]) => (
               <button key={k} onClick={() => applyPreset(k)} style={{ padding: "5px 10px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "#aaa", fontSize: 11, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>{l}</button>
             ))}
           </div>
