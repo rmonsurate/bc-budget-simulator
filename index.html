@@ -314,10 +314,11 @@ function BCBudgetV2() {
 
   const updateBracketRate = useCallback((id, newRate) => {
     setBrackets(prev => prev.map(b => b.id === id ? { ...b, rate: newRate } : b));
+    setActivePreset(null);
   }, []);
 
-  const handleExpense = useCallback((id, val) => setExpenses(p => ({ ...p, [id]: val })), []);
-  const handleRevenue = useCallback((id, val) => setRevenues(p => ({ ...p, [id]: val })), []);
+  const handleExpense = useCallback((id, val) => { setExpenses(p => ({ ...p, [id]: val })); setActivePreset(null); }, []);
+  const handleRevenue = useCallback((id, val) => { setRevenues(p => ({ ...p, [id]: val })); setActivePreset(null); }, []);
 
   // PIT scales with bracket changes
   const pitMultiplier = useMemo(() => estimatePITRevenue(brackets) / baselinePIT, [brackets]);
@@ -360,21 +361,31 @@ function BCBudgetV2() {
     return n;
   });
 
+  const [activePreset, setActivePreset] = useState("reset");
+
+  const resetAll = () => {
+    setBrackets(DEFAULT_BRACKETS);
+    setCorpRate(DEFAULT_CORP_RATE);
+    setExpenses(Object.fromEntries(EXPENSE_ITEMS.map(i => [i.id, i.baseline])));
+    setRevenues(Object.fromEntries(REVENUE_ITEMS.map(i => [i.id, i.baseline])));
+  };
+
   const applyPreset = (preset) => {
+    // Always reset to baseline first so presets are exclusive, not additive
+    resetAll();
+    setActivePreset(preset);
+
     if (preset === "reset") {
-      setBrackets(DEFAULT_BRACKETS);
-      setCorpRate(DEFAULT_CORP_RATE);
-      setExpenses(Object.fromEntries(EXPENSE_ITEMS.map(i => [i.id, i.baseline])));
-      setRevenues(Object.fromEntries(REVENUE_ITEMS.map(i => [i.id, i.baseline])));
+      // Already reset above
     } else if (preset === "admin_1975") {
-      const newExp = { ...expenses };
+      const newExp = Object.fromEntries(EXPENSE_ITEMS.map(i => [i.id, i.baseline]));
       EXPENSE_ITEMS.forEach(item => {
         if (item.adminPct >= 80) newExp[item.id] = item.baseline * 0.3;
         else if (item.adminPct >= 30) newExp[item.id] = item.baseline * 0.85;
       });
       setExpenses(newExp);
     } else if (preset === "admin_ai") {
-      const newExp = { ...expenses };
+      const newExp = Object.fromEntries(EXPENSE_ITEMS.map(i => [i.id, i.baseline]));
       EXPENSE_ITEMS.forEach(item => {
         if (item.adminPct >= 85) newExp[item.id] = item.baseline * 0.15;
         else if (item.adminPct >= 40) newExp[item.id] = item.baseline * 0.6;
@@ -382,16 +393,14 @@ function BCBudgetV2() {
       });
       setExpenses(newExp);
     } else if (preset === "my_budget") {
-      // Cut admin with AI, lower all PIT brackets, corp tax to 15%, PST to 5%
-      const newExp = { ...expenses };
+      const newExp = Object.fromEntries(EXPENSE_ITEMS.map(i => [i.id, i.baseline]));
       EXPENSE_ITEMS.forEach(item => {
         if (item.adminPct >= 85) newExp[item.id] = item.baseline * 0.15;
         else if (item.adminPct >= 40) newExp[item.id] = item.baseline * 0.6;
         else if (item.adminPct >= 20) newExp[item.id] = item.baseline * 0.9;
       });
       setExpenses(newExp);
-      // Lower all personal income tax brackets
-      setBrackets(prev => prev.map(b => {
+      setBrackets(DEFAULT_BRACKETS.map(b => {
         if (b.id === "b1") return { ...b, rate: 4.50 };
         if (b.id === "b2") return { ...b, rate: 7.00 };
         if (b.id === "b3") return { ...b, rate: 9.50 };
@@ -402,7 +411,7 @@ function BCBudgetV2() {
         return b;
       }));
       setCorpRate(15.0);
-      // Drop PST to 5%
+      setRevenues(Object.fromEntries(REVENUE_ITEMS.map(i => [i.id, i.baseline])));
       setRevenues(prev => ({ ...prev, pst: 10.2 * (5.0 / 7.0) }));
     }
   };
@@ -430,23 +439,7 @@ function BCBudgetV2() {
               BC Budget 2026 &mdash; Deep Dive
             </h1>
           </div>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-            {[["reset", "\u21BA Reset", false], ["my_budget", "\u{1F4A1} My Budget", true], ["admin_1975", "\u{1F4C9} 1975 Admin", false], ["admin_ai", "\u{1F916} AI Admin", false]].map(([k, l, primary]) => (
-              <button key={k} onClick={() => applyPreset(k)} style={{
-                padding: "7px 16px",
-                background: primary ? "linear-gradient(135deg, rgba(52,152,219,0.2) 0%, rgba(46,204,113,0.15) 100%)" : "rgba(255,255,255,0.04)",
-                border: `1px solid ${primary ? "rgba(52,152,219,0.35)" : "rgba(255,255,255,0.08)"}`,
-                borderRadius: 20,
-                color: primary ? "#fff" : "#999",
-                fontSize: 12,
-                fontWeight: primary ? 700 : 600,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-                letterSpacing: primary ? "0.01em" : "0",
-                boxShadow: primary ? "0 0 12px rgba(52,152,219,0.15)" : "none",
-              }}>{l}</button>
-            ))}
-          </div>
+          {/* Presets moved below */}
         </div>
         <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap", position: "relative" }}>
           <StatCard title="Revenue" value={f(totalRevenue)} sub={`PIT: ${f(effectiveRevenues.pit)} | CIT: ${f(effectiveRevenues.cit)}`} color="#2ecc71" />
@@ -454,6 +447,38 @@ function BCBudgetV2() {
           <StatCard title={deficit >= 0 ? "Surplus" : "Deficit"} value={f(Math.abs(deficit))} sub={change > 0.1 ? `${f(change)} better` : change < -0.1 ? `${f(Math.abs(change))} worse` : "At baseline"} color={deficit >= 0 ? "#2ecc71" : "#e74c3c"} />
           <StatCard title="Frontline $" value={`${(totalFrontline/totalExpense*100).toFixed(0)}%`} sub={f(totalFrontline)} color="#3498db" />
           <StatCard title="Admin $" value={`${(totalAdmin/totalExpense*100).toFixed(0)}%`} sub={f(totalAdmin)} color="#e67e22" />
+        </div>
+      </div>
+
+      {/* PRESETS */}
+      <div style={{ padding: "14px 28px", borderBottom: "1px solid rgba(255,255,255,0.06)", background: "rgba(0,0,0,0.12)" }}>
+        <div style={{ fontSize: 10, letterSpacing: 2, color: "#5a5e6a", textTransform: "uppercase", fontWeight: 600, marginBottom: 10 }}>Scenarios</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+          {[
+            ["reset", "\u21BA", "2026 Budget", "Actual budget as tabled", "#7f8c8d"],
+            ["my_budget", "\u{1F4A1}", "My Budget", "Cut admin, lower PIT, raise corp tax", "#3498db"],
+            ["admin_1975", "\u{1F4C9}", "1975 Admin", "Pre-calcification admin levels", "#e67e22"],
+            ["admin_ai", "\u{1F916}", "AI Admin", "Aggressive AI admin automation", "#2ecc71"],
+          ].map(([k, icon, label, desc, color]) => {
+            const isActive = activePreset === k;
+            return (
+              <button key={k} onClick={() => applyPreset(k)} style={{
+                padding: "12px 14px",
+                background: isActive ? `linear-gradient(135deg, ${color}22 0%, ${color}11 100%)` : "rgba(255,255,255,0.03)",
+                border: `1.5px solid ${isActive ? color + "55" : "rgba(255,255,255,0.06)"}`,
+                borderRadius: 10,
+                color: isActive ? "#fff" : "#999",
+                cursor: "pointer",
+                textAlign: "left",
+                boxShadow: isActive ? `0 0 16px ${color}15, inset 0 0 12px ${color}08` : "none",
+                transition: "all 0.15s ease",
+              }}>
+                <div style={{ fontSize: 18, marginBottom: 4 }}>{icon}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: "-0.01em" }}>{label}</div>
+                <div style={{ fontSize: 10, color: isActive ? "#aaa" : "#666", marginTop: 2, lineHeight: 1.3 }}>{desc}</div>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -576,7 +601,7 @@ function BCBudgetV2() {
                 <span style={{ fontSize: 14, fontWeight: 700, color: "#e67e22" }}>{"\u{1F3E2}"} Corporate Income Tax Rate</span>
                 <span style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>{corpRate.toFixed(1)}%</span>
               </div>
-              <MiniSlider value={corpRate} onChange={setCorpRate} min={8} max={20} step={0.5} color="#e67e22" format={v => `${v.toFixed(1)}%`} />
+              <MiniSlider value={corpRate} onChange={v => { setCorpRate(v); setActivePreset(null); }} min={8} max={20} step={0.5} color="#e67e22" format={v => `${v.toFixed(1)}%`} />
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#666", marginTop: 6 }}>
                 <span>Baseline: 12.0% (general rate)</span>
                 <span>Est. Revenue: {f(effectiveRevenues.cit)} {corpRate !== DEFAULT_CORP_RATE && <span style={{ color: corpMultiplier > 1 ? "#2ecc71" : "#e74c3c" }}>({corpMultiplier > 1 ? "+" : ""}{((corpMultiplier - 1) * 100).toFixed(0)}%)</span>}</span>
